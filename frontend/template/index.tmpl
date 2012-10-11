@@ -1,0 +1,86 @@
+{% extends template/layout.tmpl %}
+{% block title %}{{content.title}}{% endblock %}
+{% block addlscript %}
+<script type=text/javascript>
+    $(document).ready("loadkills(0);");
+    function loadkills(last){
+        var request;
+        var killjson;
+        var str;
+        if (window.XMLHttpRequest)
+        {// code for IE7+, Firefox, Chrome, Opera, Safari
+            request=new XMLHttpRequest();
+        }
+        else
+        {// code for IE6, IE5
+            request=new ActiveXObject("Microsoft.XMLHTTP");
+        }
+        if (last == 0){
+            request.open("GET","{{ url_for('api') }}/killfp",true);
+        } else {
+            request.open("GET","{{ url_for('api') }}/killfp/"+last,true);
+        }
+        request.send();
+        obj = JSON.parse(request.responseText);
+        for(kill in obj){;
+            str = "<tr onclick=\"window.location.href='{{ url_for('kill') }}/" + kill.killID + "'\">"
+            str += "<td width='64px'><a href='{{ url_for('kill') }}/" + kill.killID + "'><img src='{{g.staticImages}}/Render/" + kill.loss.itemID + "_64.png'></a></td>";
+            str += "<td><a href='{{ url_for('ship') }}/" + kill.loss.itemID + "'><b>" + kill.loss.itemName + "</b></a><br><a href='{{ url_for('kill') }}/group/" + kill.loss.groupID + "'>" + kill.loss.groupName + "</a><td>";
+            str += "<td width='64px'><a href='{{ url_for('kill') }}/corp/" + kill.loss.corpID + "'><img src='http://image.eveonline.com/Corporation/" + kill.loss.corpID + "_64.png'></a></td>"
+            str += "<td><a href='{{ url_for('kill') }}/pilot/" + kill.loss.charID + "'><b>" + kill.loss.charName + "</b></a><br><a href='{{ url_for('kill') }}/corp/" + kill.loss.corpID + "'>" + kill.loss.corpName + "</a><td>";
+            str += "<td><td width='64px'><a href='{{ url_for('kill') }}/" + kill.killID + "'><img src='http://image.eveonline.com/Corporation/" + kill.fb.itemID + "_64.png'></a></td>";
+            str += "<td><a href='{{ url_for('ship') }}/" + kill.fb.charID + "'><b>" + kill.fb.charName + "</b></a><br><a href='{{ url_for('kill') }}/corp/" + kill.fb.corpID + "'>" + kill.fb.corpName + "</a><td>";
+            str += "<td>" + kill.region + "/" + kill.system + " (" + kill.secstatus + ")<br><div style=\"float:left\"><i class=\"icon-user\"></i>" + kill.numkillers + "</div><div style=\"float:right\">" + kill.hours + "</div></td></tr>";
+            $('killTable').after(str);
+            last = kill.killID;
+        }
+        setTimeout("loadkills(last);", 15000);
+    }
+    
+</script>
+{% endblock %}
+{% block content %}
+{% if content.ad %}
+{{ content.support }}
+{{ content.ad|safe }}
+{% endif %}
+<i class="icon-eye-open"></i>Most expensive kills - Last 7 days
+<hr>
+<table>
+    <tr>
+        {% for kill in content.topkills %}
+        <td align=center>
+            <a href="{{ url_for('pilot') }}/{{kill.pilot.id}}">{{kill.pilot.name}}</a>
+            <img src="{{g.staticImages}}/Render/{{kill.ship.id}}_64.png" alt="{{kill.ship.name}}"></img>
+            <a href="{{ url_for('ship') }}/{{kill.ship.id}}">{{kill.ship.name}}</a>
+            {{kill.iskloss}}
+        </td>
+        {% endfor %}
+    </tr>
+</table>
+<i class="icon-eye-open"></i>Most capsule kills - Last 7 days
+<hr>
+<table>
+    <tr>
+        {% for kill in content.topcapsules %}
+        <td align=center>
+            <a href="{{ url_for('pilot') }}/{{kill.pilot.id}}">{{kill.pilot.name}}</a>
+            <img src="{{g.staticImages}}/Render/670_64.png" alt="Capsule"></img>
+            <a href="{{ url_for('ship') }}/670">Capsule</a>
+            {{kill.iskloss}}
+        </td>
+        {% endfor %}
+    </tr>
+</table>
+<i class="icon-eye-open"></i><center>{{ content.date }}</center>
+<table class="table table-striped">
+    <tr>
+        <th colspan="2">Ship</th>
+        <th colspan="2">Victim</th>
+        <th colspan="2">Final Blow</th>
+        <th>Location</th>
+    </tr>
+    <tbody class="killTable">
+    </tbody>
+</table>
+{% endblock %}

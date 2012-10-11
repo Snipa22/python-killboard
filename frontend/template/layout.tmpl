@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    {% block head %}
+    <title>{% block title %}{% endblock %}</title>
+    <link href="css/bootstrap.min.css" rel="stylesheet">
+    {% endblock %}
+    <script type=text/javascript>
+      var options = {
+        script: "fsearch?",
+        varname: "search",
+        json: true,
+        maxresults: 10
+      };
+      var as = new bsn.AutoSuggest('autosearch', options);
+  </script>
+  </head>
+  <body>
+    <div class="container">
+      <div class="row">
+        <div class="span12">
+          {% block header %}
+          <img src="{{ url_for('static', filename='logo.jpg') }}"></img>
+          {% endblock %}
+          {% block links %}
+          <ul class="nav">
+            <li><a href="/">Home</a></li>
+            <li><a href="/kills">Kills</a></li>
+            <li class="dropdown">
+              <a href="#" class="dropdown-toggle" data-toggle="dropdown">Kill Information<b class="caret"></b></a>
+              <ul class="dropdown-menu">
+                <li><a href="/kills/solo">Solo Kills</a></li>
+                <li><a href="/kills/hvt">5b+ Kills</a></li>
+                <li><a href="/kills/shvt">10b+ Kills</a></li>
+                <li><a href="/kills/cap">Cap Kills</a></li>
+                <li><a href="/kills/super">Supercap Kills</a></li>
+                <li><a href="/kills/freight">Freighter Kills</a></li>
+              </ul>
+            </li>
+            <li><a href="/about">About Site</a></li>
+            <form class="navbar-search pull-left" id="autosearch">
+              <input type="text" class="search-query" placeholder="Search">
+            </form>
+          </ul>
+          {% endblock %}
+          <div class="row">
+            <div class="span10">
+              {% block content %}{% endblock %}
+            </div>
+            <div class="span2">
+              {% block bar %}{% endblock %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script src="http://code.jquery.com/jquery-latest.js"></script>
+    <script src="js/bootstrap.min.js"></script>
+  </body>
+</html>
