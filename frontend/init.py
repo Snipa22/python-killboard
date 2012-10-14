@@ -2,6 +2,7 @@ from flask import Flask, request, session, g, redirect, url_for, abort, render_t
 import ConfigParser
 import psycopg2
 from datetime import datetime
+import pylibmc
 
 config = ConfigParser.ConfigParser()
 config.read(['frontend.conf', 'local_frontend.conf'])
@@ -10,6 +11,7 @@ dbname = config.get('Database', 'dbname')
 dbuser = config.get('Database', 'dbuser')
 dbpass = config.get('Database', 'dbpass')
 dbport = config.get('Database', 'dbport')
+mckey = config.get('Memcache', 'key')
 
 app = Flask(__name__)
 app.config.from_object(__name__)
@@ -31,34 +33,39 @@ def api(name=None, value=None):
         for kill in curs:
             i++
             system = systemInfo(kill['systemID'])
-            retVal['kills'][i] = {}
-            retVal['kills'][i]['loss'] = {}
-            retVal['kills'][i]['fb'] = {}
-            retVal['kills'][i]['killID'] = kill['killID']
-            retVal['kills'][i]['system'] = system['name']
-            retVal['kills'][i]['region'] = system['regionName']
-            retVal['kills'][i]['secstatus'] = system['secstatus']
-            retVal['kills'][i]['hours'] = kill['time'].strftime("%H:%M")
+            retVal['kills'][i] = {
+                "loss": {}
+                "fb": {}
+                "killID": kill['killID'],
+                "system": system['name'],
+                "region": system['regionName'],
+                "secstatus": system['secstatus'],
+                "hours": kill['time'].strftime("%H:%M")
+            }
             intcurs = g.db.cursor(cursor_factory=psycopg2.extras.DictCursor)
             intcurs.execute("""select * from "killVictim" where "killID" = %s""", (kill['killID'],))
             victim = intcurs.fetchone()
             victimShip = itemMarketInfo(victim['shipTypeID'])
-            retVal['kills'][i]['loss']['corpID'] = victim['corporationID']
-            retVal['kills'][i]['loss']['corpName'] = victim['corporationName']
-            retVal['kills'][i]['loss']['itemName'] = victimShip['itemName']
-            retVal['kills'][i]['loss']['groupID'] = victimShip['groupID']
-            retVal['kills'][i]['loss']['groupName'] = victimShip['GroupName']
-            retVal['kills'][i]['loss']['charID'] = victim['characterID']
-            retVal['kills'][i]['loss']['charName'] = victim['characterName']
-            retVal['kills'][i]['loss']['itemID'] = victim['shipTypeID']
+            retVal['kills'][i]['loss'] = {
+                "corpID": victim['corporationID'],
+                "corpName": victim['corporationName'],
+                "itemName": victimShip['itemName'],
+                "groupID": victimShip['groupID'],
+                "groupName": victimShip['GroupName'],
+                "charID": victim['characterID'],
+                "charName": victim['characterName'],
+                "itemID": victim['shipTypeID']
+            }
             intcurs.execute("""select * from "killVictim" where "killID" = %s AND "finalBlow" = %s""",
                 (kill['killID'], True))
             attacker = intcurs.fetchone()
-            retVal['kills'][i]['fb']['itemID'] = attacker['shipTypeID']
-            retVal['kills'][i]['fb']['charID'] = attacker['characterID']
-            retVal['kills'][i]['fb']['charName'] = attacker['characterName']
-            retVal['kills'][i]['fb']['corpID'] = attacker['corporationID']
-            retVal['kills'][i]['fb']['corpName'] = attacker['characterName']
+            retVal['kills'][i]['fb'] = {
+                "itemID": attacker['shipTypeID'],
+                "charID": attacker['characterID'],
+                "charName": attacker['characterName'],
+                "corpID": attacker['corporationID'],
+                "corpName": attacker['characterName']
+            }
             intcurs.execute("""select count("characterID") from killVictim" where "killID" = %s""", 
                 (kill['killID'],))
             retVal['kills'][i]['numkillers'] = int(intcurs.fetchone())
@@ -66,10 +73,22 @@ def api(name=None, value=None):
 
 def systemInfo(sysID):
     """Takes a system's ID, and gets name, regionID, regionName, secStatus, caches it"""
-    return
+    systemID = int(sysID)
+    try:
+        retVal = g.mc.get[mckey + "sysid" + str(systemID)]
+    except pylibmc.Error:
+        curs = g.db.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        curs.execute("""select mapsolarsystems.regionid, mapsolarsystems.solarsystemid, mapsolarsystems.solarsystemname, 
+            mapsolarsystems.security, mapregions.regionname from mapsolarsystems, mapregions where mapsolarsystems.regionid
+            = mapregions.regionid and mapsolarsystems.solarsystemid = %s""", (systemID,))
+        data = curs.fetchone()
+        retval = {"name": data['solarsystemname'], "regionID": data['regionid'], "regionName": data['regionname'], "secStatus": '%.1f' % round(data['secstatus'], 1)}
+        g.mc.set[mckey + "sysid" + str(systemID), retVal]
+    return retVal
 
 def itemMarketInfo(itemID):
     """Takes an item's typeID, gets groupName, groupID, Name, returns as a dict, cached of course."""
+
     return
 
 
@@ -84,6 +103,7 @@ def connect_db():
 def before_request():
     g.db = connect_db()
     g.staticImages = config.get('URLs', 'staticImages')
+    g.mc = pylibmc.Client([config.get('Memcache', 'server')], binary=True, behaviors={"tcp_nodelay": True, "ketama": True})
 
 @app.teardown_request
 def teardown_request(exception):
