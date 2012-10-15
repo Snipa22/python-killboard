@@ -20,7 +20,25 @@ app.config.from_object(__name__)
 
 @app.route('/')
 def home():
-    return render_template('index.tmpl')
+    content = {
+        "title": "Killboard Home",
+        "topkills": {
+            "1": {
+                "pilotid": 1,
+                "pilotname": "data",
+                "shipid": 2,
+                "shipname": "capsule"
+            }
+        }
+        "topcapsules": {
+            "1": {
+                "pilotid": 1,
+                "pilotname": "data",
+            }
+        }
+        "date": datetime.utcnow().strftime("%A, %d. %B %Y %I:%M%p")
+    }
+    return render_template('index.tmpl', content=content)
 
 @app.route('/api')
 @app.route('/api/<name>')
