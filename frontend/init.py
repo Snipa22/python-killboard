@@ -1,6 +1,7 @@
 from flask import Flask, request, session, g, redirect, url_for, abort, render_template, flash, json, jsonify
 import ConfigParser
 import psycopg2
+import psycopg2.extras
 from datetime import datetime
 import pylibmc
 
@@ -25,17 +26,19 @@ def api(name=None, value=None):
     curs = g.db.cursor(cursor_factory=psycopg2.extras.DictCursor)
     retVal = {'apiVersion': .1}
     name = name.lower()
+    if value == None:
+        value = 0
     value = int(value)
     if name == "killfp":
         curs.execute("""select * from "killList" where "killID" > %s order by "killID" desc limit 10""", (value,))
         i = 0
         retVal['kills'] = {}
         for kill in curs:
-            i++
+            i += 1
             system = systemInfo(kill['systemID'])
             retVal['kills'][i] = {
-                "loss": {}
-                "fb": {}
+                "loss": {},
+                "fb": {},
                 "killID": kill['killID'],
                 "system": system['name'],
                 "region": system['regionName'],
@@ -119,4 +122,5 @@ def teardown_request(exception):
     g.db.close()
 
 if __name__ == '__main__':
-    app.run()
+    app.debug = True
+    app.run(port=8084)
