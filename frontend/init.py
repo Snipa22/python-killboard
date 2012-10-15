@@ -29,16 +29,31 @@ def home():
                 "shipid": 2,
                 "shipname": "capsule"
             }
-        }
+        },
         "topcapsules": {
             "1": {
                 "pilotid": 1,
                 "pilotname": "data",
             }
-        }
+        },
         "date": datetime.utcnow().strftime("%A, %d. %B %Y %I:%M%p")
     }
     return render_template('index.tmpl', content=content)
+
+@app.route('/pilot')
+@app.route('/pilot/<name>')
+def pilot(name=None):
+    return
+
+@app.route('/ship')
+@app.route('/ship/<name>')
+def ship(name=None):
+    return
+
+@app.route('/kill')
+@app.route('/kill/<id>')
+def kill(id=None):
+    return
 
 @app.route('/api')
 @app.route('/api/<name>')
@@ -54,7 +69,7 @@ def api(name=None, value=None):
     value = int(value)
     if name == "killfp":
         curs.execute("""select * from "killList" where "killID" > %s order by "killID" desc limit 10""", (value,))
-        i = 0
+        i = 1
         retVal['kills'] = {}
         for kill in curs:
             i += 1
@@ -149,6 +164,7 @@ def connect_db():
 @app.before_request
 def before_request():
     g.db = connect_db()
+    g.staticContent = config.get('URLs', 'staticFiles')
     g.staticImages = config.get('URLs', 'staticImages')
     g.mc = pylibmc.Client([mcserver], binary=True, behaviors={"tcp_nodelay": True, "ketama": True})
 

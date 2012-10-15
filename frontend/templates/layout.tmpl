@@ -1,9 +1,10 @@
 <!DOCTYPE html>
 <html>
   <head>
+    <script src="http://code.jquery.com/jquery-latest.js"></script>
     {% block head %}
     <title>{% block title %}{% endblock %}</title>
-    <link href="css/bootstrap.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/bootstrap.min.css') }}" rel="stylesheet">
     {% endblock %}
     <script type=text/javascript>
       var options = {
@@ -13,7 +14,9 @@
         maxresults: 10
       };
       var as = new bsn.AutoSuggest('autosearch', options);
-  </script>
+    </script>
+    {% block addlscript %}
+    {% endblock %}
   </head>
   <body>
     <div class="container">
@@ -23,7 +26,7 @@
           <img src="{{ url_for('static', filename='logo.jpg') }}"></img>
           {% endblock %}
           {% block links %}
-          <ul class="nav">
+          <ul class="nav nav-pills">
             <li><a href="/">Home</a></li>
             <li><a href="/kills">Kills</a></li>
             <li class="dropdown">
@@ -54,7 +57,6 @@
         </div>
       </div>
     </div>
-    <script src="http://code.jquery.com/jquery-latest.js"></script>
-    <script src="js/bootstrap.min.js"></script>
+    <script src="{{ url_for('static', filename='js/bootstrap.min.js') }}"></script>
   </body>
 </html>
