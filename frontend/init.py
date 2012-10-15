@@ -18,6 +18,10 @@ mcserver = config.get('Memcache', 'server')
 app = Flask(__name__)
 app.config.from_object(__name__)
 
+@app.route('/')
+def home():
+    return render_template('index.tmpl')
+
 @app.route('/api')
 @app.route('/api/<name>')
 @app.route('/api/<name>/<value>')
@@ -76,6 +80,8 @@ def api(name=None, value=None):
             retVal['kills'][i]['numkillers'] = killers[0]
     return jsonify(retVal)
 
+
+
 def systemInfo(sysID):
     """Takes a system's ID, and gets name, regionID, regionName, secStatus, caches it"""
     systemID = int(sysID)
@@ -98,12 +104,13 @@ def itemMarketInfo(itemID):
     typeID = int(itemID)
     
     try:
+        g.mc.set(mckey + "typeid" + str(typeID), None)
         retVal = g.mc.get(mckey + "typeid" + str(typeID))
         if retVal == None:
             raise pylibmc.Error()
     except (pylibmc.Error):
         curs = g.db.cursor(cursor_factory=psycopg2.extras.DictCursor)
-        curs.execute("""select invtypes.typename, invtypes.groupid, invgroups.groupid from invtypes, invgroups
+        curs.execute("""select invtypes.typename, invtypes.groupid, invgroups.groupname from invtypes, invgroups
             where invtypes.groupid = invgroups.groupid and invtypes.typeid = %s""", (typeID,))
         data = curs.fetchone()
         if typeID == 670:
