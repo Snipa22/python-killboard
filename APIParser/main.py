@@ -43,12 +43,17 @@ def worker(message):
     curs = dbcon.cursor()
     curs2 = dbcon.cursor()
     logging.debug("Pulling API vCode and Characters for keyID %i" % message)
-    curs2.execute("""select "keyID", vcode, charid, corp from "killAPI" where "keyID" = %s and active = True""", (message,))
+    curs2.execute("""select "ID", "keyID", vcode, charid, corp from "killAPI" where "ID" = %s and active = True""", (message,))
     for result in curs2:
-        key = result[0]
-        vcode = result[1]
-        charid = result[2]
-        corp = result[3]
+        sqlid = result[0]
+        key = result[1]
+        vcode = result[2]
+        charid = result[3]
+        corp = result[4]
+        if corp:
+            curs.execute("""update "killAPI" set updtime = (now() + interval '1 hour 15 minutes') where "ID" = %s""", (sqlid,))
+        else:
+            curs.execute("""update "killAPI" set updtime = (now() + interval '2 hours') where "ID" = %s""", (sqlid,))
         logging.debug("Found character information.  KeyID: %s  charID: %s Corp: %s" % (key, charid, corp))
         api = eveapi.EVEAPIConnection()
         auth = api.auth(keyID=key, vCode=vcode)
@@ -59,6 +64,7 @@ def worker(message):
                 logging.info("Corp API Key %s for character %s had an issue during API access %s" % (key, charid, e.code))
                 if 200 <= e.code <= 209:
                     logging.info("Corp API Key %s for character %s is disabled due to Authentication issues" % (key, charid))
+                    curs.execute("""update "killAPI" set active = False where "ID" = %s""", (sqlid,))
                 continue
         else:
             try:
@@ -67,6 +73,7 @@ def worker(message):
                 logging.info("Char API Key %s for character %s had an issue during API access %s" % (key, charid, e.code))
                 if 200 <= e.code <= 205:
                     logging.info("Char API Key %s for character %s is disabled due to Authentication issues" % (key, charid))
+                    curs.execute("""update "killAPI" set active = False where "ID" = %s""", (sqlid,))
                 continue
         try:
             for kill in killAPI.kills:
