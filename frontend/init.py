@@ -13,6 +13,7 @@ dbuser = config.get('Database', 'dbuser')
 dbpass = config.get('Database', 'dbpass')
 dbport = config.get('Database', 'dbport')
 mckey = config.get('Memcache', 'key')
+mcserver = config.get('Memcache', 'server')
 
 app = Flask(__name__)
 app.config.from_object(__name__)
@@ -42,7 +43,7 @@ def api(name=None, value=None):
                 "killID": kill['killID'],
                 "system": system['name'],
                 "region": system['regionName'],
-                "secstatus": system['secstatus'],
+                "secstatus": system['secStatus'],
                 "hours": kill['time'].strftime("%H:%M")
             }
             intcurs = g.db.cursor(cursor_factory=psycopg2.extras.DictCursor)
@@ -54,12 +55,12 @@ def api(name=None, value=None):
                 "corpName": victim['corporationName'],
                 "itemName": victimShip['itemName'],
                 "groupID": victimShip['groupID'],
-                "groupName": victimShip['GroupName'],
+                "groupName": victimShip['groupName'],
                 "charID": victim['characterID'],
                 "charName": victim['characterName'],
                 "itemID": victim['shipTypeID']
             }
-            intcurs.execute("""select * from "killVictim" where "killID" = %s AND "finalBlow" = %s""",
+            intcurs.execute("""select * from "killAttackers" where "killID" = %s AND "finalBlow" = %s""",
                 (kill['killID'], True))
             attacker = intcurs.fetchone()
             retVal['kills'][i]['fb'] = {
@@ -67,40 +68,49 @@ def api(name=None, value=None):
                 "charID": attacker['characterID'],
                 "charName": attacker['characterName'],
                 "corpID": attacker['corporationID'],
-                "corpName": attacker['characterName']
+                "corpName": attacker['corporationName']
             }
-            intcurs.execute("""select count("characterID") from killVictim" where "killID" = %s""", 
+            intcurs.execute("""select count("characterID") from "killAttackers" where "killID" = %s""", 
                 (kill['killID'],))
-            retVal['kills'][i]['numkillers'] = int(intcurs.fetchone())
+            killers = intcurs.fetchone()
+            retVal['kills'][i]['numkillers'] = killers[0]
     return jsonify(retVal)
 
 def systemInfo(sysID):
     """Takes a system's ID, and gets name, regionID, regionName, secStatus, caches it"""
     systemID = int(sysID)
     try:
-        retVal = g.mc.get[mckey + "sysid" + str(systemID)]
-    except pylibmc.Error:
+        retVal = g.mc.get(mckey + "sysid" + str(sysID))
+        if retVal == None:
+            raise pylibmc.Error()
+    except (pylibmc.Error):
         curs = g.db.cursor(cursor_factory=psycopg2.extras.DictCursor)
         curs.execute("""select mapsolarsystems.regionid, mapsolarsystems.solarsystemid, mapsolarsystems.solarsystemname, 
             mapsolarsystems.security, mapregions.regionname from mapsolarsystems, mapregions where mapsolarsystems.regionid
             = mapregions.regionid and mapsolarsystems.solarsystemid = %s""", (systemID,))
         data = curs.fetchone()
-        retval = {"name": data['solarsystemname'], "regionID": data['regionid'], "regionName": data['regionname'], "secStatus": '%.1f' % round(data['secstatus'], 1)}
-        g.mc.set[mckey + "sysid" + str(systemID), retVal]
+        retVal = {"name": data['solarsystemname'], "regionID": data['regionid'], "regionName": data['regionname'], "secStatus": '%.1f' % round(data['security'], 1)}
+        g.mc.set(mckey + "sysid" + str(sysID), retVal)
     return retVal
 
 def itemMarketInfo(itemID):
     """Takes an item's typeID, gets groupName, groupID, Name, returns as a dict, cached of course."""
     typeID = int(itemID)
+    
     try:
-        retVal = g.mc.get[mckey + "typeid" + str(typeID)]
-    except pylibmc.Error:
+        retVal = g.mc.get(mckey + "typeid" + str(typeID))
+        if retVal == None:
+            raise pylibmc.Error()
+    except (pylibmc.Error):
         curs = g.db.cursor(cursor_factory=psycopg2.extras.DictCursor)
         curs.execute("""select invtypes.typename, invtypes.marketgroupid, invmarketgroups.marketgroupname from invtypes, invmarketgroups
             where invtypes.marketgroupid = invmarketgroups.marketgroupid and invtypes.typeid = %s""", (typeID,))
         data = curs.fetchone()
-        retval = {"name": data['typename'], "groupID": data['marketgroupid'], "groupName": data['marketgroupname']}
-        g.mc.set[mckey + "typeid" + str(typeID), retVal]
+        if typeID == 670:
+            retVal = {"itemName": "Capsule", "groupID": "0", "groupName": "Capsule"}
+        else:
+            retVal = {"itemName": data['typename'], "groupID": data['marketgroupid'], "groupName": data['marketgroupname']}
+        g.mc.set(mckey + "typeid" + str(typeID), retVal)
     return retVal
 
 
@@ -115,7 +125,7 @@ def connect_db():
 def before_request():
     g.db = connect_db()
     g.staticImages = config.get('URLs', 'staticImages')
-    g.mc = pylibmc.Client([config.get('Memcache', 'server')], binary=True, behaviors={"tcp_nodelay": True, "ketama": True})
+    g.mc = pylibmc.Client([mcserver], binary=True, behaviors={"tcp_nodelay": True, "ketama": True})
 
 @app.teardown_request
 def teardown_request(exception):

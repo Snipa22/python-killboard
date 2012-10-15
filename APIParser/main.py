@@ -51,9 +51,10 @@ def worker(message):
         charid = result[3]
         corp = result[4]
         if corp:
-            curs.execute("""update "killAPI" set updtime = (now() + interval '1 hour 15 minutes') where "ID" = %s""", (sqlid,))
+            curs.execute("""update "killAPI" set updtime = now() + interval '1 hour 15 minutes' where "ID" = %s""", (sqlid,))
         else:
-            curs.execute("""update "killAPI" set updtime = (now() + interval '2 hours') where "ID" = %s""", (sqlid,))
+            curs.execute("""update "killAPI" set updtime = now() + interval '2 hours' where "ID" = %s""", (sqlid,))
+        dbcon.commit()
         logging.debug("Found character information.  KeyID: %s  charID: %s Corp: %s" % (key, charid, corp))
         api = eveapi.EVEAPIConnection()
         auth = api.auth(keyID=key, vCode=vcode)
