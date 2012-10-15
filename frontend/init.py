@@ -88,8 +88,17 @@ def systemInfo(sysID):
 
 def itemMarketInfo(itemID):
     """Takes an item's typeID, gets groupName, groupID, Name, returns as a dict, cached of course."""
-
-    return
+    typeID = int(itemID)
+    try:
+        retVal = g.mc.get[mckey + "typeid" + str(typeID)]
+    except pylibmc.Error:
+        curs = g.db.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        curs.execute("""select invtypes.typename, invtypes.marketgroupid, invmarketgroups.marketgroupname from invtypes, invmarketgroups
+            where invtypes.marketgroupid = invmarketgroups.marketgroupid and invtypes.typeid = %s""", (typeID,))
+        data = curs.fetchone()
+        retval = {"name": data['typename'], "groupID": data['marketgroupid'], "groupName": data['marketgroupname']}
+        g.mc.set[mckey + "typeid" + str(typeID), retVal]
+    return retVal
 
 
 def connect_db():
