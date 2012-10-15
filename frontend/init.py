@@ -103,13 +103,13 @@ def itemMarketInfo(itemID):
             raise pylibmc.Error()
     except (pylibmc.Error):
         curs = g.db.cursor(cursor_factory=psycopg2.extras.DictCursor)
-        curs.execute("""select invtypes.typename, invtypes.marketgroupid, invmarketgroups.marketgroupname from invtypes, invmarketgroups
-            where invtypes.marketgroupid = invmarketgroups.marketgroupid and invtypes.typeid = %s""", (typeID,))
+        curs.execute("""select invtypes.typename, invtypes.groupid, invgroups.groupid from invtypes, invgroups
+            where invtypes.groupid = invgroups.groupid and invtypes.typeid = %s""", (typeID,))
         data = curs.fetchone()
         if typeID == 670:
             retVal = {"itemName": "Capsule", "groupID": "0", "groupName": "Capsule"}
         else:
-            retVal = {"itemName": data['typename'], "groupID": data['marketgroupid'], "groupName": data['marketgroupname']}
+            retVal = {"itemName": data['typename'], "groupID": data['groupid'], "groupName": data['groupname']}
         g.mc.set(mckey + "typeid" + str(typeID), retVal)
     return retVal
 
