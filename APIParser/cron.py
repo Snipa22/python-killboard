@@ -21,8 +21,8 @@ else:
 
 curs = dbcon.cursor()
 curs2 = dbcon.cursor()
-curs.execute("""select "ID" from "killAPI" where updtime <= now()""")
+curs.execute("""select id from killapi where updtime <= now()""")
 for api in curs:
     sqlid = api[0]
-    curs2.execute("""update "killAPI" set updtime = (now() + interval '15 minutes') where "ID" = %s""", (sqlid,))
+    curs2.execute("""update killapi set updtime = (now() + interval '15 minutes') where id = %s""", (sqlid,))
     queue.put(sqlid)
