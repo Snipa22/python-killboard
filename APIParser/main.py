@@ -208,16 +208,20 @@ def worker(message):
                     pass
 
                 for items in kill.items:
-                    curs.execute("""insert into killitems values(%s, %s, %s, %s, %s, %s)""", (killid, items.typeID,
-                        items.flag, items.qtyDropped, items.qtyDestroyed, items.singleton))
+                    price = priceCheck(items.typeID)
+                    pricesum += price
+                    curs.execute("""insert into killitems values(%s, %s, %s, %s, %s, %s, %s)""", (killid, items.typeID,
+                        items.flag, items.qtyDropped, items.qtyDestroyed, items.singleton, price))
 
                 curs.execute("""insert into killlist values (%s, %s, TIMESTAMPTZ 'epoch' + %s * '1 second'::interval, %s
                     )""", (killid, kill.solarSystemID, kill.killTime, kill.victim.characterID))
 
-                curs.execute("""insert into killvictim values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""", (killid,
+                price = priceCheck(kill.victim.shipTypeID)
+                pricesum += price
+                curs.execute("""insert into killvictim values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, )""", (killid,
                     kill.victim.allianceID, kill.victim.allianceName, kill.victim.characterID, kill.victim.characterName,
                     kill.victim.corporationID, kill.victim.corporationName, kill.victim.damageTaken, kill.victim.factionID,
-                    kill.victim.factionName, kill.victim.shipTypeID))
+                    kill.victim.factionName, kill.victim.shipTypeID, price))
 
                 for attackers in kill.attackers:
                     curs.execute("""insert into killattackers values(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s::boolean, %s, %s)
@@ -225,6 +229,9 @@ def worker(message):
                         attackers.corporationName, attackers.allianceID, attackers.allianceName,
                         attackers.factionID, attackers.factionName, attackers.securityStatus, attackers.damageDone,
                         attackers.finalBlow, attackers.weaponTypeID, attackers.shipTypeID))
+
+                curs.execute("""update killlist set price = %s where killid = %s""", (pricesum, killid))
+
                 dbcon.commit()
         except Exception, err:
             print err
