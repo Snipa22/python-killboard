@@ -71,47 +71,47 @@ def api(name=None, value=None):
     except ValueError:
         value = 0
     if name == "killfp":
-        curs.execute("""select * from "killList" where "killID" > %s order by "killID" desc limit 10""", (value,))
+        curs.execute("""select * from killlist where killid > %s order by killid desc limit 10""", (value,))
         i = 1
         retVal['kills'] = {}
         for kill in curs:
             i += 1
-            system = systemInfo(kill['systemID'])
+            system = systemInfo(kill['systemid'])
             retVal['kills'][i] = {
                 "loss": {},
                 "fb": {},
-                "killID": kill['killID'],
+                "killID": kill['killid'],
                 "system": system['name'],
                 "region": system['regionName'],
                 "secstatus": system['secStatus'],
                 "hours": kill['time'].strftime("%H:%M")
             }
             intcurs = g.db.cursor(cursor_factory=psycopg2.extras.DictCursor)
-            intcurs.execute("""select * from "killVictim" where "killID" = %s""", (kill['killID'],))
+            intcurs.execute("""select * from killvictim where killid = %s""", (kill['killid'],))
             victim = intcurs.fetchone()
-            victimShip = itemMarketInfo(victim['shipTypeID'])
+            victimShip = itemMarketInfo(victim['shipTypeid'])
             retVal['kills'][i]['loss'] = {
-                "corpID": victim['corporationID'],
+                "corpID": victim['corporationid'],
                 "corpName": victim['corporationName'],
                 "itemName": victimShip['itemName'],
-                "groupID": victimShip['groupID'],
+                "groupID": victimShip['groupid'],
                 "groupName": victimShip['groupName'],
-                "charID": victim['characterID'],
+                "charID": victim['characterid'],
                 "charName": victim['characterName'],
-                "itemID": victim['shipTypeID']
+                "itemID": victim['shipTypeid']
             }
-            intcurs.execute("""select * from "killAttackers" where "killID" = %s AND "finalBlow" = %s""",
-                (kill['killID'], True))
+            intcurs.execute("""select * from killattackers where killid = %s AND finalblow = %s""",
+                (kill['killid'], True))
             attacker = intcurs.fetchone()
             retVal['kills'][i]['fb'] = {
-                "itemID": attacker['shipTypeID'],
-                "charID": attacker['characterID'],
+                "itemID": attacker['shipTypeid'],
+                "charID": attacker['characterid'],
                 "charName": attacker['characterName'],
-                "corpID": attacker['corporationID'],
+                "corpID": attacker['corporationid'],
                 "corpName": attacker['corporationName']
             }
-            intcurs.execute("""select count("characterID") from "killAttackers" where "killID" = %s""", 
-                (kill['killID'],))
+            intcurs.execute("""select count(characterid) from killattackers where killid = %s""", 
+                (kill['killid'],))
             killers = intcurs.fetchone()
             retVal['kills'][i]['numkillers'] = killers[0]
     elif name == "kill":
