@@ -3,10 +3,7 @@
 {% block addlscript %}
 <script type=text/javascript>
     $(document).ready(loadkills);
-    function loadkills(last){
-        if (typeof last != "number"){
-            last = 0
-        }
+    function loadkills(){
         var request;
         var killjson;
         var str;
@@ -18,10 +15,10 @@
         {// code for IE6, IE5
             request=new ActiveXObject("Microsoft.XMLHTTP");
         }
-        if (last == 0){
+        if (window['lastKill'] == undefined){
             request.open("GET","{{ url_for('api') }}/killfp",false);
         } else {
-            request.open("GET","{{ url_for('api') }}/killfp/"+last,false);
+            request.open("GET","{{ url_for('api') }}/killfp/"+window['lastKill'],false);
         }
         request.send();
         obj = JSON.parse(request.responseText);
@@ -29,17 +26,19 @@
             var kill = obj.kills[killid];
             str = "<tr onclick=\"window.location.href='{{ url_for('kill') }}/" + kill.killID + "'\">"
             str += "<td width='64px'><a href='{{ url_for('kill') }}/" + kill.killID + "'><img src='{{g.staticImages}}/Render/" + kill.loss.itemID + "_64.png'></a></td>";
-            str += "<td><a href='{{ url_for('ship') }}/" + kill.loss.itemID + "'><b>" + kill.loss.itemName + "</b></a><br><a href='{{ url_for('kill') }}/group/" + kill.loss.groupID + "'>" + kill.loss.groupName + "</a><td>";
+            str += "<td><a href='{{ url_for('ship') }}/" + kill.loss.itemID + "'><b>" + kill.loss.itemName + "</b></a><br><a href='{{ url_for('kill') }}/group/" + kill.loss.groupID + "'>" + kill.loss.groupName + "</a></td>";
             str += "<td width='64px'><a href='{{ url_for('kill') }}/corp/" + kill.loss.corpID + "'><img src='http://image.eveonline.com/Corporation/" + kill.loss.corpID + "_64.png'></a></td>"
-            str += "<td><a href='{{ url_for('kill') }}/pilot/" + kill.loss.charID + "'><b>" + kill.loss.charName + "</b></a><br><a href='{{ url_for('kill') }}/corp/" + kill.loss.corpID + "'>" + kill.loss.corpName + "</a><td>";
-            str += "<td><td width='64px'><a href='{{ url_for('kill') }}/" + kill.killID + "'><img src='{{g.staticImages}}/Render/" + kill.fb.itemID + "_64.png'></a></td>";
-            str += "<td><a href='{{ url_for('ship') }}/" + kill.fb.charID + "'><b>" + kill.fb.charName + "</b></a><br><a href='{{ url_for('kill') }}/corp/" + kill.fb.corpID + "'>" + kill.fb.corpName + "</a><td>";
+            str += "<td><a href='{{ url_for('kill') }}/pilot/" + kill.loss.charID + "'><b>" + kill.loss.charName + "</b></a><br><a href='{{ url_for('kill') }}/corp/" + kill.loss.corpID + "'>" + kill.loss.corpName + "</a></td>";
+            str += "<td width='64px'><a href='{{ url_for('kill') }}/" + kill.killID + "'><img src='{{g.staticImages}}/Render/" + kill.fb.itemID + "_64.png'></a></td>";
+            str += "<td><a href='{{ url_for('ship') }}/" + kill.fb.charID + "'><b>" + kill.fb.charName + "</b></a><br><a href='{{ url_for('kill') }}/corp/" + kill.fb.corpID + "'>" + kill.fb.corpName + "</a></td>";
             str += "<td>" + kill.region + "/" + kill.system + " (" + kill.secstatus + ")<br><div style=\"float:left\"><i class=\"icon-user\"></i>" + kill.numkillers + "</div><div style=\"float:right\">" + kill.hours + "</div></td></tr>";
-            console.log(str);
             $('#killtable').find('tbody:last').append(str);
-            last = kill.killID;
+            if(kill.killID > window['lastKill'] || window['lastKill'] == undefined){
+                window['lastKill'] = kill.killID;
+            }
         }
-        setTimeout("loadkills(last);", 15000);
+        setTimeout("loadkills();", 15000);
+        document.getElementById('killtable').border="0";
     }
     
 </script>
