@@ -66,7 +66,10 @@ def api(name=None, value=None):
     name = name.lower()
     if value == None:
         value = 0
-    value = int(value)
+    try:
+        value = int(value)
+    except ValueError:
+        value = 0
     if name == "killfp":
         curs.execute("""select * from "killList" where "killID" > %s order by "killID" desc limit 10""", (value,))
         i = 1
@@ -113,9 +116,8 @@ def api(name=None, value=None):
             retVal['kills'][i]['numkillers'] = killers[0]
     elif name == "kill":
         if value == 0:
-            retVal['error'] = "No kills found"
-            continue
-        retVal['error'] = "lol"
+            retVal['error'] = "1"
+            return jsonify(retVal)
     else:
         return render_template('apiusage.html')
 
