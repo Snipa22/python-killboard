@@ -130,11 +130,13 @@ def api(name=None, value=None, key=None):
         auth = api.auth(keyID=value, vCode=key)
         data = auth.account.APIKeyInfo()
         if data.key.accessMask & 256 > 0:
-            corp = True
-            if data.key.type == "Character":
-                corp = False
+            corp = False
+            print data.key.type
+            if data.key.type == "Corporation":
+                corp = True
             for char in data.key.characters:
-                curs.execute("""insert into killapi (keyid, vcode, charid, corp) values (%s, %s, %s, %s)""", (value, key, char['characterID'], corp)
+                curs.execute("""insert into killapi (keyid, vcode, charid, corp) values (%s, %s, %s, %s)""", (value, key, char['characterID'], corp))
+                g.db.commit()
                 retVal['error'] = 0
                 retVal['msg'] = "API with key ID %i inserted into database" % value
         else:
@@ -189,7 +191,6 @@ def itemMarketInfo(itemID):
 
 def connect_db():
     if not dbpass:
-    # Connect without password
         return psycopg2.connect("host="+dbhost+" user="+dbuser+" dbname="+dbname+" port="+dbport)
     else:
         return psycopg2.connect("host="+dbhost+" user="+dbuser+" password="+dbpass+" dbname="+dbname+" port="+dbport)
