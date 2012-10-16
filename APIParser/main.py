@@ -58,7 +58,7 @@ def priceCheck(typeID):
         pricedbcon = psycopg2.connect("host="+dbhost+" user="+dbuser+" password="+dbpass+" dbname="+dbname+" port="+dbport)
     curs = pricedbcon.cursor()
     try:
-        curs.execute("""select manual, override, api from prices where typeid = %s""", (typeID,))
+        curs.execute("""select manual, override, api from killprices where typeid = %s""", (typeID,))
         data = curs.fetchone()
         if data[0]:
             return data[1]
@@ -77,9 +77,9 @@ def priceCheck(typeID):
     elif int(retVal) != 0:
         mc.set(mckey + "price" + str(typeID), retVal, 300)
         try:
-            curs.execute("""update prices set api = %s where typeid = %s""", (retVal,typeID))
+            curs.execute("""update killprices set api = %s where typeid = %s""", (retVal,typeID))
         except:
-            curs.execute("""insert into prices (typeid, api) values (%s, %s)""", (typeID, retVal))
+            curs.execute("""insert into killprices (typeid, api) values (%s, %s)""", (typeID, retVal))
     return retVal
 
 def ecpricing(typeID):
