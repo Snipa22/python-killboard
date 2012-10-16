@@ -89,26 +89,26 @@ def api(name=None, value=None):
             intcurs = g.db.cursor(cursor_factory=psycopg2.extras.DictCursor)
             intcurs.execute("""select * from killvictim where killid = %s""", (kill['killid'],))
             victim = intcurs.fetchone()
-            victimShip = itemMarketInfo(victim['shipTypeid'])
+            victimShip = itemMarketInfo(victim['shiptypeid'])
             retVal['kills'][i]['loss'] = {
                 "corpID": victim['corporationid'],
-                "corpName": victim['corporationName'],
+                "corpName": victim['corporationname'],
                 "itemName": victimShip['itemName'],
-                "groupID": victimShip['groupid'],
+                "groupID": victimShip['groupID'],
                 "groupName": victimShip['groupName'],
                 "charID": victim['characterid'],
-                "charName": victim['characterName'],
-                "itemID": victim['shipTypeid']
+                "charName": victim['charactername'],
+                "itemID": victim['shiptypeid']
             }
             intcurs.execute("""select * from killattackers where killid = %s AND finalblow = %s""",
                 (kill['killid'], True))
             attacker = intcurs.fetchone()
             retVal['kills'][i]['fb'] = {
-                "itemID": attacker['shipTypeid'],
+                "itemID": attacker['shiptypeid'],
                 "charID": attacker['characterid'],
-                "charName": attacker['characterName'],
+                "charName": attacker['charactername'],
                 "corpID": attacker['corporationid'],
-                "corpName": attacker['corporationName']
+                "corpName": attacker['corporationname']
             }
             intcurs.execute("""select count(characterid) from killattackers where killid = %s""", 
                 (kill['killid'],))
