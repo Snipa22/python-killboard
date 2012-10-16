@@ -9,6 +9,8 @@ import pylibmc
 import logging
 import eveapi
 import urllib
+import xml.etree.ElementTree as ET
+import httplib
 
 config = ConfigParser.ConfigParser()
 config.read(['api.conf', 'local_api.conf'])
@@ -55,27 +57,79 @@ def priceCheck(typeID):
     else:
         pricedbcon = psycopg2.connect("host="+dbhost+" user="+dbuser+" password="+dbpass+" dbname="+dbname+" port="+dbport)
     curs = pricedbcon.cursor()
-    curs.execute("""select manual, override, api from prices where typeid = %s""", (typeID,))
-    data = curs.fetchone()
-    if data[0]:
-        retVal = data[1]
-    elif psource == "psql":
+    try:
+        curs.execute("""select manual, override, api from prices where typeid = %s""", (typeID,))
+        data = curs.fetchone()
+        if data[0]:
+            return data[1]
+    except:
+        pass
+    if psource == "psql":
         retVal = psqlpricing(typeID)
     elif psource == "ec":
-        retVal = retVal = ecpricing(typeID)
+        retVal = ecpricing(typeID)
     elif psource == "e43api":
-        pass
+        retVal = e43pricing(typeID)
     else:
         retVal = ecpricing(typeID)
-    if !retVal:
+    if not retVal:
         retVal = data[2]
-    elif retVal != 0:
+    elif int(retVal) != 0:
         mc.set(mckey + "price" + str(typeID), retVal, 300)
         try:
             curs.execute("""update prices set api = %s where typeid = %s""", (retVal,typeID))
         except:
             curs.execute("""insert into prices (typeid, api) values (%s, %s)""", (typeID, retVal))
     return retVal
+
+def ecpricing(typeID):
+    conn = httplib.HTTPConnection(ecapi)
+    conn.request("GET", "/api/marketstat/?typeid=%i&regionlimit=10000002" % (typeID))
+    res = conn.getresponse()
+    data = res.read()
+    conn.close()
+    root = ET.fromstring(data)
+    for data in root.findall("./marketstat/type/sell/percentile"):
+        retVal = float(data.text)
+    try:
+        if retVal == 0.0:
+            for data in root.findall("./marketstat/type/sell/median"):
+                retVal = float(data.text)
+    except NameError:
+        for data in root.findall("./marketstat/type/sell/median"):
+            retVal = float(data.text)
+    try:
+        retVal
+    except NameError:
+        retVal = False
+    if retVal == 0.0:
+        retVal = False
+    return retVal
+
+def e43pricing(typeID):
+    conn = httplib.HTTPConnection(e43api)
+    conn.request("GET", "/market/api/marketstat/?typeid=%i&regionlimit=10000002" % (typeID))
+    res = conn.getresponse()
+    data = res.read()
+    conn.close()
+    root = ET.fromstring(data)
+    for data in root.findall("./marketstat/type/sell/percentile"):
+        retVal = float(data.text)
+    try:
+        if retVal == 0.0:
+            for data in root.findall("./marketstat/type/sell/median"):
+                retVal = float(data.text)
+    except NameError:
+        for data in root.findall("./marketstat/type/sell/median"):
+            retVal = float(data.text)
+    try:
+        retVal
+    except NameError:
+        retVal = False
+    if retVal == 0.0:
+        retVal = False
+    return retVal
+
 
 def psqlpricing(typeID):
     # Handle DBs without password
@@ -110,7 +164,7 @@ def worker(message):
     curs = dbcon.cursor()
     curs2 = dbcon.cursor()
     logging.debug("Pulling API vCode and Characters for keyID %i" % message)
-    curs2.execute("""select "ID", "keyID", vcode, charid, corp from "killAPI" where "ID" = %s and active = True""", (message,))
+    curs2.execute("""select id, keyid, vcode, charid, corp from killapi where id = %s and active = True""", (message,))
     for result in curs2:
         sqlid = result[0]
         key = result[1]
@@ -118,9 +172,9 @@ def worker(message):
         charid = result[3]
         corp = result[4]
         if corp:
-            curs.execute("""update "killAPI" set updtime = now() + interval '1 hour 15 minutes' where "ID" = %s""", (sqlid,))
+            curs.execute("""update killapi set updtime = now() + interval '1 hour 15 minutes' where id = %s""", (sqlid,))
         else:
-            curs.execute("""update "killAPI" set updtime = now() + interval '2 hours' where "ID" = %s""", (sqlid,))
+            curs.execute("""update killapi set updtime = now() + interval '2 hours' where id = %s""", (sqlid,))
         dbcon.commit()
         logging.debug("Found character information.  KeyID: %s  charID: %s Corp: %s" % (key, charid, corp))
         api = eveapi.EVEAPIConnection()
@@ -132,7 +186,7 @@ def worker(message):
                 logging.info("Corp API Key %s for character %s had an issue during API access %s" % (key, charid, e.code))
                 if 200 <= e.code <= 209:
                     logging.info("Corp API Key %s for character %s is disabled due to Authentication issues" % (key, charid))
-                    curs.execute("""update "killAPI" set active = False where "ID" = %s""", (sqlid,))
+                    curs.execute("""update killapi set active = False where id = %s""", (sqlid,))
                 continue
         else:
             try:
@@ -141,12 +195,12 @@ def worker(message):
                 logging.info("Char API Key %s for character %s had an issue during API access %s" % (key, charid, e.code))
                 if 200 <= e.code <= 205:
                     logging.info("Char API Key %s for character %s is disabled due to Authentication issues" % (key, charid))
-                    curs.execute("""update "killAPI" set active = False where "ID" = %s""", (sqlid,))
+                    curs.execute("""update killapi set active = False where id = %s""", (sqlid,))
                 continue
         try:
             for kill in killAPI.kills:
                 killid = kill.killID
-                curs.execute("""select "killID" from "killList" where "killID" = %s""", (killid,))
+                curs.execute("""select killid from killlist where killid = %s""", (killid,))
                 try:
                     if curs.fetchone() != None:
                         continue
@@ -154,17 +208,19 @@ def worker(message):
                     pass
 
                 for items in kill.items:
-                    curs.execute("""insert into "killItems" values(%s, %s, %s, %s, %s, %s)""", (killid, items.typeID,
+                    curs.execute("""insert into killitems values(%s, %s, %s, %s, %s, %s)""", (killid, items.typeID,
                         items.flag, items.qtyDropped, items.qtyDestroyed, items.singleton))
 
-                curs.execute("""insert into "killList" values (%s, %s, TIMESTAMPTZ 'epoch' + %s * '1 second'::interval, %s
+                curs.execute("""insert into killlist values (%s, %s, TIMESTAMPTZ 'epoch' + %s * '1 second'::interval, %s
                     )""", (killid, kill.solarSystemID, kill.killTime, kill.victim.characterID))
-                curs.execute("""insert into "killVictim" values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""", (killid,
+
+                curs.execute("""insert into killvictim values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""", (killid,
                     kill.victim.allianceID, kill.victim.allianceName, kill.victim.characterID, kill.victim.characterName,
                     kill.victim.corporationID, kill.victim.corporationName, kill.victim.damageTaken, kill.victim.factionID,
                     kill.victim.factionName, kill.victim.shipTypeID))
+
                 for attackers in kill.attackers:
-                    curs.execute("""insert into "killAttackers" values(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s::boolean, %s, %s)
+                    curs.execute("""insert into killattackers values(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s::boolean, %s, %s)
                         """, (killid, attackers.characterID, attackers.characterName, attackers.corporationID,
                         attackers.corporationName, attackers.allianceID, attackers.allianceName,
                         attackers.factionID, attackers.factionName, attackers.securityStatus, attackers.damageDone,
