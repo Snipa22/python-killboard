@@ -47,6 +47,7 @@ def main():
 
 def priceCheck(typeID):
     typeID = int(typeID)
+    logging.debug("Updating mineral prices for %i" % (typeID))
     mc = pylibmc.Client([mcserver], binary=True, behaviors={"tcp_nodelay": True, "ketama": True})
     if mckey + "price" + str(typeID) in mc:
         return mc.get(mckey + "price" + str(typeID))
@@ -72,14 +73,16 @@ def priceCheck(typeID):
         retVal = e43pricing(typeID)
     else:
         retVal = ecpricing(typeID)
-    if not retVal:
-        retVal = data[2]
+    if retVal == None or retVal == 0.0 or not retVal:
+        retVal = 0
     elif int(retVal) != 0:
-        mc.set(mckey + "price" + str(typeID), retVal, 300)
+        mc.set(mckey + "price" + str(typeID), retVal, 600)
+        logging.debug("Updating mineral prices for %i to %f in database" % (typeID, retVal))
         try:
             curs.execute("""update killprices set api = %s where typeid = %s""", (retVal,typeID))
         except:
             curs.execute("""insert into killprices (typeid, api) values (%s, %s)""", (typeID, retVal))
+        pricedbcon.commit()
     return retVal
 
 def ecpricing(typeID):
@@ -138,7 +141,7 @@ def psqlpricing(typeID):
         dbcon = psycopg2.connect("host="+psqlhost+" user="+psqluser+" dbname="+psqlname+" port="+psqlport)
     else:
         dbcon = psycopg2.connect("host="+psqlhost+" user="+psqluser+" password="+psqlpass+" dbname="+psqlname+" port="+psqlport)
-    curs = dbcon.cursor(psycopg2.extras.DictCursor)
+    curs = dbcon.cursor(cursor_factory=psycopg2.extras.DictCursor)
     curs.execute("""select * from market_data_itemregionstat where mapregion_id = 10000002 and invtype_id = %s """, (typeID,))
     data = curs.fetchone()
     if data['sell_95_percentile'] != 0:
@@ -147,11 +150,14 @@ def psqlpricing(typeID):
         return data['sellmedian']
     else:
         curs.execute("""select * from market_data_itemregionstathistory where mapregion_id = 10000002 and invtype_id = %s and (sellmedian != 0 or sell_95_percentile != 0) order by date desc limit 1""", (typeID,))
-        data = curs.fetchone()
-        if data['sell_95_percentile'] != 0:
-            return data['sell_95_percentile']
-        elif data['sellmedian'] != 0:
-            return data['sellmedian']
+        try:
+            data = curs.fetchone()
+            if data['sell_95_percentile'] != 0:
+                return data['sell_95_percentile']
+            elif data['sellmedian'] != 0:
+                return data['sellmedian']
+        except:
+            pass
     return False
 
 def worker(message):
@@ -199,6 +205,7 @@ def worker(message):
                 continue
         try:
             for kill in killAPI.kills:
+                pricesum = 0
                 killid = kill.killID
                 curs.execute("""select killid from killlist where killid = %s""", (killid,))
                 try:
@@ -209,7 +216,7 @@ def worker(message):
 
                 for items in kill.items:
                     price = priceCheck(items.typeID)
-                    pricesum += price
+                    pricesum += (price * items.qtyDropped * items.qtyDestroyed)
                     curs.execute("""insert into killitems values(%s, %s, %s, %s, %s, %s, %s)""", (killid, items.typeID,
                         items.flag, items.qtyDropped, items.qtyDestroyed, items.singleton, price))
 
