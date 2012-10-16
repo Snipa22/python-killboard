@@ -1,9 +1,11 @@
 import ConfigParser
 import psycopg2
+import psycopg2.extras
 from hotqueue import HotQueue
 import gevent
 from gevent.pool import Pool
 from gevent import monkey; gevent.monkey.patch_all()
+import pylibmc
 import logging
 import eveapi
 import urllib
@@ -19,6 +21,14 @@ redisdb = config.get('Redis', 'redishost')
 apiServer = config.get('API', 'host')
 mcserver = config.get('Memcache', 'server')
 mckey = config.get('Memcache', 'key')
+psource = config.get('Pricing', 'source')
+ecapi = config.get('Pricing', 'echost')
+e43api = config.get('Pricing', 'e43host')
+psqlhost = config.get('Pricing', 'psqlhost')
+psqlname = config.get('Pricing', 'psqlname')
+psqluser = config.get('Pricing', 'psqluser')
+psqlpass = config.get('Pricing', 'psqlpass')
+psqlport = config.get('Pricing', 'psqlport')
 
 MAX_NUM_POOL_WORKERS = 75
 
@@ -32,6 +42,63 @@ greenlet_pool = Pool(size=MAX_NUM_POOL_WORKERS)
 def main():
     for message in queue.consume():
         greenlet_pool.spawn(worker, message)
+
+def priceCheck(typeID):
+    typeID = int(typeID)
+    mc = pylibmc.Client([mcserver], binary=True, behaviors={"tcp_nodelay": True, "ketama": True})
+    if mckey + "price" + str(typeID) in mc:
+        return mc.get(mckey + "price" + str(typeID))
+    # Handle DBs without password
+    if not dbpass:
+    # Connect without password
+        pricedbcon = psycopg2.connect("host="+dbhost+" user="+dbuser+" dbname="+dbname+" port="+dbport)
+    else:
+        pricedbcon = psycopg2.connect("host="+dbhost+" user="+dbuser+" password="+dbpass+" dbname="+dbname+" port="+dbport)
+    curs = pricedbcon.cursor()
+    curs.execute("""select manual, override, api from prices where typeid = %s""", (typeID,))
+    data = curs.fetchone()
+    if data[0]:
+        retVal = data[1]
+    elif psource == "psql":
+        retVal = psqlpricing(typeID)
+    elif psource == "ec":
+        retVal = retVal = ecpricing(typeID)
+    elif psource == "e43api":
+        pass
+    else:
+        retVal = ecpricing(typeID)
+    if !retVal:
+        retVal = data[2]
+    elif retVal != 0:
+        mc.set(mckey + "price" + str(typeID), retVal, 300)
+        try:
+            curs.execute("""update prices set api = %s where typeid = %s""", (retVal,typeID))
+        except:
+            curs.execute("""insert into prices (typeid, api) values (%s, %s)""", (typeID, retVal))
+    return retVal
+
+def psqlpricing(typeID):
+    # Handle DBs without password
+    if not dbpass:
+    # Connect without password
+        dbcon = psycopg2.connect("host="+psqlhost+" user="+psqluser+" dbname="+psqlname+" port="+psqlport)
+    else:
+        dbcon = psycopg2.connect("host="+psqlhost+" user="+psqluser+" password="+psqlpass+" dbname="+psqlname+" port="+psqlport)
+    curs = dbcon.cursor(psycopg2.extras.DictCursor)
+    curs.execute("""select * from market_data_itemregionstat where mapregion_id = 10000002 and invtype_id = %s """, (typeID,))
+    data = curs.fetchone()
+    if data['sell_95_percentile'] != 0:
+        return data['sell_95_percentile']
+    elif data['sellmedian'] != 0:
+        return data['sellmedian']
+    else:
+        curs.execute("""select * from market_data_itemregionstathistory where mapregion_id = 10000002 and invtype_id = %s and (sellmedian != 0 or sell_95_percentile != 0) order by date desc limit 1""", (typeID,))
+        data = curs.fetchone()
+        if data['sell_95_percentile'] != 0:
+            return data['sell_95_percentile']
+        elif data['sellmedian'] != 0:
+            return data['sellmedian']
+    return False
 
 def worker(message):
     # Handle DBs without password
@@ -85,7 +152,11 @@ def worker(message):
                         continue
                 except ProgrammingError:
                     pass
-                
+
+                for items in kill.items:
+                    curs.execute("""insert into "killItems" values(%s, %s, %s, %s, %s, %s)""", (killid, items.typeID,
+                        items.flag, items.qtyDropped, items.qtyDestroyed, items.singleton))
+
                 curs.execute("""insert into "killList" values (%s, %s, TIMESTAMPTZ 'epoch' + %s * '1 second'::interval, %s
                     )""", (killid, kill.solarSystemID, kill.killTime, kill.victim.characterID))
                 curs.execute("""insert into "killVictim" values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""", (killid,
@@ -98,9 +169,6 @@ def worker(message):
                         attackers.corporationName, attackers.allianceID, attackers.allianceName,
                         attackers.factionID, attackers.factionName, attackers.securityStatus, attackers.damageDone,
                         attackers.finalBlow, attackers.weaponTypeID, attackers.shipTypeID))
-                for items in kill.items:
-                    curs.execute("""insert into "killItems" values(%s, %s, %s, %s, %s, %s)""", (killid, items.typeID,
-                        items.flag, items.qtyDropped, items.qtyDestroyed, items.singleton))
                 dbcon.commit()
         except Exception, err:
             print err
