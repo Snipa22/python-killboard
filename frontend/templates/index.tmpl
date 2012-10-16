@@ -30,7 +30,7 @@
             str += "<td width='64px'><a href='{{ url_for('kill') }}/corp/" + kill.loss.corpID + "'><img src='http://image.eveonline.com/Corporation/" + kill.loss.corpID + "_64.png'></a></td>"
             str += "<td><a href='{{ url_for('kill') }}/pilot/" + kill.loss.charID + "'><b>" + kill.loss.charName + "</b></a><br><a href='{{ url_for('kill') }}/corp/" + kill.loss.corpID + "'>" + kill.loss.corpName + "</a></td>";
             str += "<td width='64px'><a href='{{ url_for('kill') }}/" + kill.killID + "'><img src='{{g.staticImages}}/Render/" + kill.fb.itemID + "_64.png'></a></td>";
-            str += "<td><a href='{{ url_for('ship') }}/" + kill.fb.charID + "'><b>" + kill.fb.charName + "</b></a><br><a href='{{ url_for('kill') }}/corp/" + kill.fb.corpID + "'>" + kill.fb.corpName + "</a></td>";
+            str += "<td><a href='{{ url_for('kill') }}/pilot/" + kill.fb.charID + "'><b>" + kill.fb.charName + "</b></a><br><a href='{{ url_for('kill') }}/corp/" + kill.fb.corpID + "'>" + kill.fb.corpName + "</a></td>";
             str += "<td>" + kill.region + "/" + kill.system + " (" + kill.secstatus + ")<br><div style=\"float:left\"><i class=\"icon-user\"></i>" + kill.numkillers + "</div><div style=\"float:right\">" + kill.hours + "</div></td></tr>";
             $('#killtable').find('tbody:last').append(str);
             if(kill.killID > window['lastKill'] || window['lastKill'] == undefined){

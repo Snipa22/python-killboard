@@ -111,6 +111,15 @@ def api(name=None, value=None):
                 (kill['killID'],))
             killers = intcurs.fetchone()
             retVal['kills'][i]['numkillers'] = killers[0]
+    elif name == "kill":
+        if value == 0:
+            retVal['error'] = "No kills found"
+            continue
+        retVal['error'] = "lol"
+    else:
+        return render_template('apiusage.html')
+
+
     return jsonify(retVal)
 
 
