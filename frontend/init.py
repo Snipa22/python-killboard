@@ -4,6 +4,8 @@ import psycopg2
 import psycopg2.extras
 from datetime import datetime
 import pylibmc
+import eveapi
+import re
 
 config = ConfigParser.ConfigParser()
 config.read(['frontend.conf', 'local_frontend.conf'])
@@ -58,7 +60,8 @@ def kill(id=None):
 @app.route('/api')
 @app.route('/api/<name>')
 @app.route('/api/<name>/<value>')
-def api(name=None, value=None):
+@app.route('/api/<name>/<value>/<key>')
+def api(name=None, value=None, key=None):
     if name == None:
         return render_template('apiusage.html')
     curs = g.db.cursor(cursor_factory=psycopg2.extras.DictCursor)
@@ -116,8 +119,27 @@ def api(name=None, value=None):
             retVal['kills'][i]['numkillers'] = killers[0]
     elif name == "kill":
         if value == 0:
-            retVal['error'] = "1"
+            retVal['error'] = 1
             return jsonify(retVal)
+    elif name == "addapi":
+        if value == 0 or key == None or re.match("^[0-9a-zA-Z]{64}$", key) == None:
+            retVal['error'] = 1
+            retVal['msg'] = "Bad API Key"
+            return jsonify(retVal)
+        api = eveapi.EVEAPIConnection()
+        auth = api.auth(keyID=value, vCode=key)
+        data = auth.account.APIKeyInfo()
+        if data.key.accessMask & 256 > 0:
+            corp = True
+            if data.key.type == "Character":
+                corp = False
+            for char in data.key.characters:
+                curs.execute("""insert into killapi (keyid, vcode, charid, corp) values (%s, %s, %s, %s)""", (value, key, char['characterID'], corp)
+                retVal['error'] = 0
+                retVal['msg'] = "API with key ID %i inserted into database" % value
+        else:
+            retVal['error'] = 1
+            retVal['msg'] = "Not enough access on API key"
     else:
         return render_template('apiusage.html')
 
