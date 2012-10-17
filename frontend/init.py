@@ -118,38 +118,52 @@ def api(name=None, value=None, key=None):
             killers = intcurs.fetchone()
             retVal['kills'][i]['numkillers'] = killers[0]
     elif name == "kill":
+        curs = g.db.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         if value == 0:
             retVal['error'] = 1
             retVal['msg'] = "No kill defined"
             return jsonify(retVal)
+        killid = value
         retVal['killers'] = {}
         retVal['victim'] = {}
         retVal['items'] = {}
-        curs.execute("""select * from killlist where killid = %s""", (value,))
-        for key, value in curs():
+        curs.execute("""select * from killlist where killid = %s""", (killid,))
+        for key, value in curs.fetchall()[0].iteritems():
             if key == "time":
                 retVal[key] = value.strftime("%H:%M")
             elif key == "systemid":
-                for syskey, sysvalue in systemInfo(value):
-                    retval[syskey] = sysvalue
+                for syskey, sysvalue in systemInfo(value).iteritems():
+                    retVal[syskey] = sysvalue
                 retVal[key] = value
             else:
                 retVal[key] = value
-        curs.execute("""select * from killattackers where killid = %s""", (value,))
-        for key, value in curs():
-            if key == "shiptypeid":
-                for syskey, sysvalue in itemMarketInfo(value):
-                    retval['killers'][syskey] = sysvalue
-            retVal['killers'][key] = value
-        curs.execute("""select * from killitems where killid = %s""", (value,))
-        for key, value in curs():
-            retVal['items'][key] = value
-        curs.execute("""select * from killvictim where killid = %s""", (value,))
-        for key, value in curs():
-            if key == "shiptypeid":
-                for syskey, sysvalue in itemMarketInfo(value):
-                    retval['killers'][syskey] = sysvalue
-            retVal['victim'][key] = value
+        curs.execute("""select * from killattackers where killid = %s order by damagedone desc""", (killid,))
+        i = 0
+        for data in curs:
+            retVal['killers'][i] = {}
+            for key, value in data.iteritems():
+                if key == "shiptypeid":
+                    for syskey, sysvalue in itemMarketInfo(value).iteritems():
+                        retVal['killers'][i][syskey] = sysvalue
+                retVal['killers'][i][key] = value
+            i += 1
+        curs.execute("""select * from killitems where killid = %s""", (killid,))
+        i = 0
+        for data in curs:
+            retVal['items'][i] = {}
+            for key, value in data.iteritems():
+                if key == "typeid":
+                    for syskey, sysvalue in itemMarketInfo(value).iteritems():
+                        retVal['items'][i][syskey] = sysvalue
+                retVal['items'][i][key] = value
+            i += 1
+        curs.execute("""select * from killvictim where killid = %s""", (killid,))
+        for data in curs:
+            for key, value in data.iteritems():
+                if key == "shiptypeid":
+                    for syskey, sysvalue in itemMarketInfo(value).iteritems():
+                        retVal['victim'][syskey] = sysvalue
+                retVal['victim'][key] = value
 
     elif name == "addapi":
         if value == 0 or key == None or re.match("^[0-9a-zA-Z]{64}$", key) == None:
