@@ -45,13 +45,63 @@ def home():
     return render_template('index.tmpl', content=content)
 
 @app.route('/pilot')
-@app.route('/pilot/<name>')
-def pilot(name=None):
-    return
+@app.route('/pilot/<id>')
+def pilot(id=None):
+    id = int(name)
+    content = {
+        "title": "Kills for pilot: %d" % id,
+        "api": "pilot/%d" % id,
+    }
+    return render_template('slist.tmpl', content=content)
 
 @app.route('/ship')
-@app.route('/ship/<name>')
-def ship(name=None):
+@app.route('/ship/<id>')
+def ship(id=None):
+    id = int(name)
+    content = {
+        "title": "Kills for ship: %d" % id,
+        "api": "ship/%d" % id,
+    }
+    return
+
+@app.route('/corp')
+@app.route('/corp/<id>')
+def corp(id=None):
+    id = int(name)
+    content = {
+        "title": "Kills for corp: %d" % id,
+        "api": "corp/%d" % id,
+    }
+    return
+
+@app.route('/alliance')
+@app.route('/alliance/<id>')
+def alliance(id=None):
+    id = int(name)
+    content = {
+        "title": "Kills for alliance: %d" % id,
+        "api": "alliance/%d" % id,
+    }
+    return
+
+@app.route('/group')
+@app.route('/group/<id>')
+def group(id=None):
+    id = int(name)
+    content = {
+        "title": "Kills for group: %d" % id,
+        "api": "group/%d" % id,
+    }
+    return
+
+@app.route('/system')
+@app.route('/system/<id>')
+def system(id=None):
+    id = int(name)
+    content = {
+        "title": "Kills for System: %d" % id,
+        "api": "system/%d" % id,
+    }
     return
 
 @app.route('/kill')
@@ -74,12 +124,19 @@ def api(name=None, value=None, key=None):
     curs = g.db.cursor(cursor_factory=psycopg2.extras.DictCursor)
     retVal = {'apiVersion': .1, 'error': 0}
     name = name.lower()
+    cachekey = key
     if value == None:
         value = 0
     try:
         value = int(value)
     except ValueError:
         value = 0
+    if key == None:
+        key = 0
+    try:
+        key = int(key)
+    except ValueError:
+        key = 0
     if name == "killfp":
         curs.execute("""select killid from killlist where killid > %s order by killid desc limit 10""", (value,))
         i = 0
@@ -89,11 +146,71 @@ def api(name=None, value=None, key=None):
             retVal['kills'][i] = killshort(kill['killid'])
 
     elif name == "kill":
-        curs = g.db.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         if value == 0:
             retVal['error'] = 1
             retVal['msg'] = "No kill defined"
             return jsonify(retVal)
+        retVal = getkill(value)
+
+    elif name == "addapi":
+        if value == 0 or cachekey == None or re.match("^[0-9a-zA-Z]{64}$", cachekey) == None:
+            retVal['error'] = 1
+            retVal['msg'] = "Bad API Key"
+            return jsonify(retVal)
+        api = eveapi.EVEAPIConnection()
+        auth = api.auth(keyID=value, vCode=cachekey)
+        data = auth.account.APIKeyInfo()
+        if data.key.accessMask & 256 > 0:
+            corp = False
+            print data.key.type
+            if data.key.type == "Corporation":
+                corp = True
+            for char in data.key.characters:
+                curs.execute("""insert into killapi (keyid, vcode, charid, corp) values (%s, %s, %s, %s)""", (value, cachekey, char['characterID'], corp))
+                g.db.commit()
+                retVal['error'] = 0
+                retVal['msg'] = "API with key ID %i inserted into database" % value
+        else:
+            retVal['error'] = 1
+            retVal['msg'] = "Not enough access on API key"
+    elif name == "corp" or name == "alliance" or name == "pilot":
+        if name == "corp":
+            curs.execute("""select killid from killattackers where corporationid=%s and killid > %s union select killid from killvictim where corporationid=%s and killid > %s order by killid desc limit 10""", (value,key,value,key))
+        elif name == "alliance":
+            curs.execute("""select killid from killattackers where allianceid=%s and killid > %s union select killid from killvictim where allianceid=%s and killid > %s order by killid desc limit 10""", (value,key,value,key))
+        else:
+            curs.execute("""select killid from killattackers where characterid=%s and killid > %s union select killid from killvictim where characterid=%s and killid > %s order by killid desc limit 10""", (value,key,value,key))
+        i = 0
+        retVal['kills'] = {}
+        for kill in curs:
+            i += 1
+            retVal['kills'][i] = killshort(kill['killid'])
+    elif name == "ship" or name == "system" or name == "group":
+        if name == "ship":
+            curs.execute("""select killid from killvictim where shiptypeid=%s and killid > %s order by killid desc limit 10""", (value,key))
+        elif name == "system":
+            curs.execute("""select killid from killlist where systemid=%s and killid > %s order by killid desc limit 10""", (value,key))
+        else:
+            curs.execute("""select typeid from invtypes where groupid = %s""", (value,))
+            for data in curs:
+                str += """select killid from killvictim where shiptypeid=%s and killid > %s union """ % (data, key)
+            str.rstrip('union ')
+            str += " order by killid desc limit 10"
+            print str
+            curs.execute(str)
+        i = 0
+        retVal['kills'] = {}
+        for kill in curs:
+            i += 1
+            retVal['kills'][i] = killshort(kill['killid'])
+    else:
+        return render_template('apiusage.html')
+
+
+    return jsonify(retVal)
+
+def getkill(value):
+    curs = g.db.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         killid = value
         retVal['killers'] = {}
         retVal['victim'] = {}
@@ -150,33 +267,6 @@ def api(name=None, value=None, key=None):
                     for syskey, sysvalue in itemMarketInfo(value).iteritems():
                         retVal['victim'][syskey] = sysvalue
                 retVal['victim'][key] = value
-
-    elif name == "addapi":
-        if value == 0 or key == None or re.match("^[0-9a-zA-Z]{64}$", key) == None:
-            retVal['error'] = 1
-            retVal['msg'] = "Bad API Key"
-            return jsonify(retVal)
-        api = eveapi.EVEAPIConnection()
-        auth = api.auth(keyID=value, vCode=key)
-        data = auth.account.APIKeyInfo()
-        if data.key.accessMask & 256 > 0:
-            corp = False
-            print data.key.type
-            if data.key.type == "Corporation":
-                corp = True
-            for char in data.key.characters:
-                curs.execute("""insert into killapi (keyid, vcode, charid, corp) values (%s, %s, %s, %s)""", (value, key, char['characterID'], corp))
-                g.db.commit()
-                retVal['error'] = 0
-                retVal['msg'] = "API with key ID %i inserted into database" % value
-        else:
-            retVal['error'] = 1
-            retVal['msg'] = "Not enough access on API key"
-    else:
-        return render_template('apiusage.html')
-
-
-    return jsonify(retVal)
 
 def killshort(killid):
     curs = g.db.cursor(cursor_factory=psycopg2.extras.DictCursor)

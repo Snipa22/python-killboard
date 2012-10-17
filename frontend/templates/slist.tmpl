@@ -16,9 +16,9 @@
             request=new ActiveXObject("Microsoft.XMLHTTP");
         }
         if (window['lastKill'] == undefined){
-            request.open("GET","{{ url_for('api') }}/killfp",false);
+            request.open("GET","{{ url_for('api') }}/{{content.api}}",false);
         } else {
-            request.open("GET","{{ url_for('api') }}/killfp/"+window['lastKill'],false);
+            request.open("GET","{{ url_for('api') }}/{{content.api}}/"+window['lastKill'],false);
         }
         request.send();
         obj = JSON.parse(request.responseText);
@@ -48,35 +48,7 @@
 {{ content.support }}
 {{ content.ad|safe }}
 {% endif %}
-<i class="icon-eye-open"></i>Most expensive kills - Last 7 days
-<hr>
-<table>
-    <tr>
-        {% for kill in content.topkills %}
-        <td align=center>
-            <a href="{{ url_for('pilot') }}/{{kill.pilotid}}">{{kill.pilotname}}</a>
-            <img src="{{g.staticImages}}/Render/{{kill.shipid}}_64.png" alt="{{kill.shipname}}"></img>
-            <a href="{{ url_for('ship') }}/{{kill.shipid}}">{{kill.shipname}}</a>
-            {{kill.iskloss}}
-        </td>
-        {% endfor %}
-    </tr>
-</table>
-<i class="icon-eye-open"></i>Most capsule kills - Last 7 days
-<hr>
-<table>
-    <tr>
-        {% for kill in content.topcapsules %}
-        <td align=center>
-            <a href="{{ url_for('pilot') }}/{{kill.pilotid}}">{{kill.pilotname}}</a>
-            <img src="{{g.staticImages}}/Render/670_64.png" alt="Capsule"></img>
-            <a href="{{ url_for('ship') }}/670">Capsule</a>
-            {{kill.iskloss}}
-        </td>
-        {% endfor %}
-    </tr>
-</table>
-<i class="icon-eye-open"></i><center>{{ content.date }}</center>
+<i class="icon-eye-open"></i><center>All Kills/Losses</center>
 <table class="table table-striped" id="killtable">
     <tr>
         <th colspan="2">Ship</th>
