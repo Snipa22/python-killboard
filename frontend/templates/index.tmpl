@@ -53,7 +53,7 @@
 <table>
     <tr>
         {% for kill in content.topkills %}
-        <td align=center>
+        <td align=center onclick="window.location.href='{{ url_for('kill') }}/{{kill.killid}}">
             <a href="{{ url_for('pilot') }}/{{kill.pilotid}}">{{kill.pilotname}}</a>
             <img src="{{g.staticImages}}/Render/{{kill.shipid}}_64.png" alt="{{kill.shipname}}"></img>
             <a href="{{ url_for('ship') }}/{{kill.shipid}}">{{kill.shipname}}</a>
@@ -67,10 +67,10 @@
 <table>
     <tr>
         {% for kill in content.topcapsules %}
-        <td align=center>
+        <td align=center onclick="window.location.href='{{ url_for('kill') }}/{{kill.killid}}">
             <a href="{{ url_for('pilot') }}/{{kill.pilotid}}">{{kill.pilotname}}</a>
-            <img src="{{g.staticImages}}/Render/670_64.png" alt="Capsule"></img>
-            <a href="{{ url_for('ship') }}/670">Capsule</a>
+            <img src="{{g.staticImages}}/Render/{{kill.shipid}}_64.png" alt="{{kill.shipname}}"></img>
+            <a href="{{ url_for('ship') }}/{{kill.shipid}}">{{kill.shipname}}</a>
             {{kill.iskloss}}
         </td>
         {% endfor %}
