@@ -191,10 +191,11 @@ def api(name=None, value=None, key=None):
         elif name == "system":
             curs.execute("""select killid from killlist where systemid=%s and killid > %s order by killid desc limit 10""", (value,key))
         else:
+            str = ""
             curs.execute("""select typeid from invtypes where groupid = %s""", (value,))
             for data in curs:
-                str += """select killid from killvictim where shiptypeid=%s and killid > %s union """ % (data, key)
-            str.rstrip('union ')
+                str += """select killid from killvictim where shiptypeid=%s and killid > %s union """ % (data[0], key)
+            str = str.rstrip('union ')
             str += " order by killid desc limit 10"
             print str
             curs.execute(str)
