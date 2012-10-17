@@ -19,28 +19,34 @@
         request.send();
         obj = JSON.parse(request.responseText);
         $("#victimimg").html("<img src='http://image.eveonline.com/Character/"+obj.victimcharID+"_64.jpg'></img>");
-        $("#victimname").html("<a href='{{ url_for('pilot') }}/pilot/" + obj.victimcharID +"'>"+obj.victim.charactername+"</a>");
-        $("#victimcorp").html("<a href='{{ url_for('corp') }}/corp/" + obj.victim.corporationid +"'>"+obj.victim.corporationname+"</a>");
-        $("#victimalliance").html("<a href='{{ url_for('alliace') }}/alliance/" + obj.victim.allianceid +"'>"+obj.victim.alliancename+"</a>");
+        $("#victimname").html("<a href='{{ url_for('pilot') }}/" + obj.victimcharID +"'>"+obj.victim.charactername+"</a>");
+        $("#victimcorp").html("<a href='{{ url_for('corp') }}/" + obj.victim.corporationid +"'>"+obj.victim.corporationname+"</a>");
+        $("#victimalliance").html("<a href='{{ url_for('alliance') }}/" + obj.victim.allianceid +"'>"+obj.victim.alliancename+"</a>");
         $("#victimshipimg").html("<img src='{{g.staticImages}}/Render/" + obj.victim.shiptypeid + "_64.png'></img>");
         $("#victimshipname").html("<a href='{{ url_for('ship') }}/" + obj.victim.shiptypeid + "'>"+obj.victim.itemName+"</a> ("+obj.victim.groupName+")");
-        $("#killoc").html("<a href='{{ url_for('system') }}/system/" + obj.systemid +"''>"+obj.name+"</a> ("+obj.secStatus+")");
+        $("#killoc").html("<a href='{{ url_for('system') }}/" + obj.systemid +"''>"+obj.name+"</a> ("+obj.secStatus+")");
         $("#killdate").html(obj.time);
         $("#iskloss").html(obj.price);
         $("#dmgdone").html(obj.victim.damagetaken);
         for(attkid in obj.killers){
             var kill = obj.killers[attkid];
             str = "<tr>"
-            str += "<td rowspan='5'><img src='http://image.eveonline.com/Character/"+kill.characterid+"_64.jpg'></img></td>"
-            if (kill.shiptypeid != 0){
+            if (kill.finalblow == false){
+                str += "<td rowspan='5'><img src='http://image.eveonline.com/Character/"+kill.characterid+"_64.jpg'></img></td>"
+            } else {
+                str += "<td rowspan='5'><img src='http://image.eveonline.com/Character/"+kill.characterid+"_64.jpg' class='img-polaroid'></img></td>"
+            }
+            if (kill.shiptypeid != 0 && kill.finalblow == false){
                 str += "<td rowspan='5'><img src='{{g.staticImages}}/Render/" + kill.shiptypeid + "_64.png'></img></td>"
+            } else if (kill.shiptypeid != 0) {
+                str += "<td rowspan='5'><img src='{{g.staticImages}}/Render/" + kill.shiptypeid + "_64.png' class='img-polaroid'></img></td>"
             } else {
                 str += "<td rowspan='5'><img src='http://image.eveonline.com/Render/1_64.png'></img></td>"
             }
             str += "<td>"+kill.charactername+"</td>"
             str += "</tr>"
-            str += "<tr><td><a href='{{ url_for('corp') }}/corp/" + kill.corporationid +"''>"+kill.corporationname+"</a></td></tr>"
-            str += "<tr><td><a href='{{ url_for('alliance') }}/alliance/" + kill.allianceid +"''>"+kill.alliancename+"</a></td></tr>"
+            str += "<tr><td><a href='{{ url_for('corp') }}/" + kill.corporationid +"''>"+kill.corporationname+"</a></td></tr>"
+            str += "<tr><td><a href='{{ url_for('alliance') }}/" + kill.allianceid +"''>"+kill.alliancename+"</a></td></tr>"
             if (kill.shiptypeid != 0){
                 str += "<tr><td><a href='{{ url_for('ship') }}/" + kill.shiptypeid + "'>"+kill.itemName+"</a> ("+kill.groupName+")</td></tr>"
             } else {

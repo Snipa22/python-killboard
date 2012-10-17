@@ -47,7 +47,7 @@ def home():
 @app.route('/pilot')
 @app.route('/pilot/<id>')
 def pilot(id=None):
-    id = int(name)
+    id = int(id)
     content = {
         "title": "Kills for pilot: %d" % id,
         "api": "pilot/%d" % id,
@@ -57,52 +57,52 @@ def pilot(id=None):
 @app.route('/ship')
 @app.route('/ship/<id>')
 def ship(id=None):
-    id = int(name)
+    id = int(id)
     content = {
         "title": "Kills for ship: %d" % id,
         "api": "ship/%d" % id,
     }
-    return
+    return render_template('slist.tmpl', content=content)
 
 @app.route('/corp')
 @app.route('/corp/<id>')
 def corp(id=None):
-    id = int(name)
+    id = int(id)
     content = {
         "title": "Kills for corp: %d" % id,
         "api": "corp/%d" % id,
     }
-    return
+    return render_template('slist.tmpl', content=content)
 
 @app.route('/alliance')
 @app.route('/alliance/<id>')
 def alliance(id=None):
-    id = int(name)
+    id = int(id)
     content = {
         "title": "Kills for alliance: %d" % id,
         "api": "alliance/%d" % id,
     }
-    return
+    return render_template('slist.tmpl', content=content)
 
 @app.route('/group')
 @app.route('/group/<id>')
 def group(id=None):
-    id = int(name)
+    id = int(id)
     content = {
         "title": "Kills for group: %d" % id,
         "api": "group/%d" % id,
     }
-    return
+    return render_template('slist.tmpl', content=content)
 
 @app.route('/system')
 @app.route('/system/<id>')
 def system(id=None):
-    id = int(name)
+    id = int(id)
     content = {
         "title": "Kills for System: %d" % id,
         "api": "system/%d" % id,
     }
-    return
+    return render_template('slist.tmpl', content=content)
 
 @app.route('/kill')
 @app.route('/kill/<id>')
@@ -211,62 +211,64 @@ def api(name=None, value=None, key=None):
 
 def getkill(value):
     curs = g.db.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-        killid = value
-        retVal['killers'] = {}
-        retVal['victim'] = {}
-        retVal['items'] = {}
-        curs.execute("""select * from killlist where killid = %s""", (killid,))
-        for key, value in curs.fetchall()[0].iteritems():
-            if key == "time":
-                retVal[key] = value.strftime("%Y-%m-%d %H:%M")
-            elif key == "systemid":
-                for syskey, sysvalue in systemInfo(value).iteritems():
-                    retVal[syskey] = sysvalue
-                retVal[key] = value
-            elif key == "price":
+    killid = value
+    retVal={}
+    retVal['killers'] = {}
+    retVal['victim'] = {}
+    retVal['items'] = {}
+    curs.execute("""select * from killlist where killid = %s""", (killid,))
+    for key, value in curs.fetchall()[0].iteritems():
+        if key == "time":
+            retVal[key] = value.strftime("%Y-%m-%d %H:%M")
+        elif key == "systemid":
+            for syskey, sysvalue in systemInfo(value).iteritems():
+                retVal[syskey] = sysvalue
+            retVal[key] = value
+        elif key == "price":
+            value = locale.format("%.2f", value, grouping=True, monetary=True)
+            retVal[key] = value
+        else:
+            retVal[key] = value
+    curs.execute("""select * from killattackers where killid = %s order by damagedone desc""", (killid,))
+    i = 0
+    for data in curs:
+        retVal['killers'][i] = {}
+        retVal['killers'][i]['weap'] = {}
+        for key, value in data.iteritems():
+            if key == "shiptypeid":
+                for syskey, sysvalue in itemMarketInfo(value).iteritems():
+                    retVal['killers'][i][syskey] = sysvalue
+            elif key == "damagedone":
+                value = locale.format("%d", value, grouping=True)
+            elif key == "weapontypeid":
+                for syskey, sysvalue in itemMarketInfo(value).iteritems():
+                    retVal['killers'][i]['weap'][syskey] = sysvalue
+            retVal['killers'][i][key] = value
+        i += 1
+    curs.execute("""select * from killitems where killid = %s""", (killid,))
+    i = 0
+    for data in curs:
+        retVal['items'][i] = {}
+        for key, value in data.iteritems():
+            if key == "typeid":
+                for syskey, sysvalue in itemMarketInfo(value).iteritems():
+                    retVal['items'][i][syskey] = sysvalue
+            elif key == "itemprice":
                 value = locale.format("%.2f", value, grouping=True, monetary=True)
-                retVal[key] = value
-            else:
-                retVal[key] = value
-        curs.execute("""select * from killattackers where killid = %s order by damagedone desc""", (killid,))
-        i = 0
-        for data in curs:
-            retVal['killers'][i] = {}
-            retVal['killers'][i]['weap'] = {}
-            for key, value in data.iteritems():
-                if key == "shiptypeid":
-                    for syskey, sysvalue in itemMarketInfo(value).iteritems():
-                        retVal['killers'][i][syskey] = sysvalue
-                elif key == "damagedone":
-                    value = locale.format("%d", value, grouping=True)
-                elif key == "weapontypeid":
-                    for syskey, sysvalue in itemMarketInfo(value).iteritems():
-                        retVal['killers'][i]['weap'][syskey] = sysvalue
-                retVal['killers'][i][key] = value
-            i += 1
-        curs.execute("""select * from killitems where killid = %s""", (killid,))
-        i = 0
-        for data in curs:
-            retVal['items'][i] = {}
-            for key, value in data.iteritems():
-                if key == "typeid":
-                    for syskey, sysvalue in itemMarketInfo(value).iteritems():
-                        retVal['items'][i][syskey] = sysvalue
-                elif key == "itemprice":
-                    value = locale.format("%.2f", value, grouping=True, monetary=True)
-                retVal['items'][i][key] = value
-            i += 1
-        curs.execute("""select * from killvictim where killid = %s""", (killid,))
-        for data in curs:
-            for key, value in data.iteritems():
-                if key == "shipprice":
-                    value = locale.format("%.2f", value, grouping=True, monetary=True)
-                elif key == "damagetaken":
-                    value = locale.format("%d", value, grouping=True)
-                elif key == "shiptypeid":
-                    for syskey, sysvalue in itemMarketInfo(value).iteritems():
-                        retVal['victim'][syskey] = sysvalue
-                retVal['victim'][key] = value
+            retVal['items'][i][key] = value
+        i += 1
+    curs.execute("""select * from killvictim where killid = %s""", (killid,))
+    for data in curs:
+        for key, value in data.iteritems():
+            if key == "shipprice":
+                value = locale.format("%.2f", value, grouping=True, monetary=True)
+            elif key == "damagetaken":
+                value = locale.format("%d", value, grouping=True)
+            elif key == "shiptypeid":
+                for syskey, sysvalue in itemMarketInfo(value).iteritems():
+                    retVal['victim'][syskey] = sysvalue
+            retVal['victim'][key] = value
+    return retVal
 
 def killshort(killid):
     curs = g.db.cursor(cursor_factory=psycopg2.extras.DictCursor)
