@@ -6,6 +6,8 @@ from datetime import datetime
 import pylibmc
 import eveapi
 import re
+import locale
+locale.setlocale(locale.LC_ALL, 'en_US')
 
 config = ConfigParser.ConfigParser()
 config.read(['frontend.conf', 'local_frontend.conf'])
@@ -99,6 +101,9 @@ def api(name=None, value=None, key=None):
                 for syskey, sysvalue in systemInfo(value).iteritems():
                     retVal[syskey] = sysvalue
                 retVal[key] = value
+            elif key == "price":
+                value = locale.format("%.2f", value, grouping=True, monetary=True)
+                retVal[key] = value
             else:
                 retVal[key] = value
         curs.execute("""select * from killattackers where killid = %s order by damagedone desc""", (killid,))
@@ -109,6 +114,8 @@ def api(name=None, value=None, key=None):
                 if key == "shiptypeid":
                     for syskey, sysvalue in itemMarketInfo(value).iteritems():
                         retVal['killers'][i][syskey] = sysvalue
+                elif key == "damagedone":
+                    value = locale.format("%d", value, grouping=True)
                 retVal['killers'][i][key] = value
             i += 1
         curs.execute("""select * from killitems where killid = %s""", (killid,))
@@ -119,12 +126,18 @@ def api(name=None, value=None, key=None):
                 if key == "typeid":
                     for syskey, sysvalue in itemMarketInfo(value).iteritems():
                         retVal['items'][i][syskey] = sysvalue
+                elif key == "itemprice":
+                    value = locale.format("%.2f", value, grouping=True, monetary=True)
                 retVal['items'][i][key] = value
             i += 1
         curs.execute("""select * from killvictim where killid = %s""", (killid,))
         for data in curs:
             for key, value in data.iteritems():
-                if key == "shiptypeid":
+                if key == "shipprice":
+                    value = locale.format("%.2f", value, grouping=True, monetary=True)
+                elif key == "damagetaken":
+                    value = locale.format("%d", value, grouping=True)
+                elif key == "shiptypeid":
                     for syskey, sysvalue in itemMarketInfo(value).iteritems():
                         retVal['victim'][syskey] = sysvalue
                 retVal['victim'][key] = value
