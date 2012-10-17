@@ -74,10 +74,11 @@ def api(name=None, value=None, key=None):
     except ValueError:
         value = 0
     if name == "killfp":
-        curs.execute("""select killid from killlist where killid > %s order by killid desc limit 10""", (killid,))
+        curs.execute("""select killid from killlist where killid > %s order by killid desc limit 10""", (value,))
         i = 0
         retVal['kills'] = {}
         for kill in curs:
+            i += 1
             retVal['kills'][i] = killshort(kill['killid'])
 
     elif name == "kill":
