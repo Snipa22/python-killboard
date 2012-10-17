@@ -65,7 +65,7 @@ def api(name=None, value=None, key=None):
     if name == None:
         return render_template('apiusage.html')
     curs = g.db.cursor(cursor_factory=psycopg2.extras.DictCursor)
-    retVal = {'apiVersion': .1}
+    retVal = {'apiVersion': .1, 'error': 0}
     name = name.lower()
     if value == None:
         value = 0
@@ -120,7 +120,37 @@ def api(name=None, value=None, key=None):
     elif name == "kill":
         if value == 0:
             retVal['error'] = 1
+            retVal['msg'] = "No kill defined"
             return jsonify(retVal)
+        retVal['killers'] = {}
+        retVal['victim'] = {}
+        retVal['items'] = {}
+        curs.execute("""select * from killlist where killid = %s""", (value,))
+        for key, value in curs():
+            if key == "time":
+                retVal[key] = value.strftime("%H:%M")
+            elif key == "systemid":
+                for syskey, sysvalue in systemInfo(value):
+                    retval[syskey] = sysvalue
+                retVal[key] = value
+            else:
+                retVal[key] = value
+        curs.execute("""select * from killattackers where killid = %s""", (value,))
+        for key, value in curs():
+            if key == "shiptypeid":
+                for syskey, sysvalue in itemMarketInfo(value):
+                    retval['killers'][syskey] = sysvalue
+            retVal['killers'][key] = value
+        curs.execute("""select * from killitems where killid = %s""", (value,))
+        for key, value in curs():
+            retVal['items'][key] = value
+        curs.execute("""select * from killvictim where killid = %s""", (value,))
+        for key, value in curs():
+            if key == "shiptypeid":
+                for syskey, sysvalue in itemMarketInfo(value):
+                    retval['killers'][syskey] = sysvalue
+            retVal['victim'][key] = value
+
     elif name == "addapi":
         if value == 0 or key == None or re.match("^[0-9a-zA-Z]{64}$", key) == None:
             retVal['error'] = 1
