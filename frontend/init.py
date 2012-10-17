@@ -74,49 +74,12 @@ def api(name=None, value=None, key=None):
     except ValueError:
         value = 0
     if name == "killfp":
-        curs.execute("""select * from killlist where killid > %s order by killid desc limit 10""", (value,))
-        i = 1
+        curs.execute("""select killid from killlist where killid > %s order by killid desc limit 10""", (killid,))
+        i = 0
         retVal['kills'] = {}
         for kill in curs:
-            i += 1
-            system = systemInfo(kill['systemid'])
-            retVal['kills'][i] = {
-                "loss": {},
-                "fb": {},
-                "killID": kill['killid'],
-                "system": system['name'],
-                "region": system['regionName'],
-                "secstatus": system['secStatus'],
-                "hours": kill['time'].strftime("%H:%M")
-            }
-            intcurs = g.db.cursor(cursor_factory=psycopg2.extras.DictCursor)
-            intcurs.execute("""select * from killvictim where killid = %s""", (kill['killid'],))
-            victim = intcurs.fetchone()
-            victimShip = itemMarketInfo(victim['shiptypeid'])
-            retVal['kills'][i]['loss'] = {
-                "corpID": victim['corporationid'],
-                "corpName": victim['corporationname'],
-                "itemName": victimShip['itemName'],
-                "groupID": victimShip['groupID'],
-                "groupName": victimShip['groupName'],
-                "charID": victim['characterid'],
-                "charName": victim['charactername'],
-                "itemID": victim['shiptypeid']
-            }
-            intcurs.execute("""select * from killattackers where killid = %s AND finalblow = %s""",
-                (kill['killid'], True))
-            attacker = intcurs.fetchone()
-            retVal['kills'][i]['fb'] = {
-                "itemID": attacker['shiptypeid'],
-                "charID": attacker['characterid'],
-                "charName": attacker['charactername'],
-                "corpID": attacker['corporationid'],
-                "corpName": attacker['corporationname']
-            }
-            intcurs.execute("""select count(characterid) from killattackers where killid = %s""", 
-                (kill['killid'],))
-            killers = intcurs.fetchone()
-            retVal['kills'][i]['numkillers'] = killers[0]
+            retVal['kills'][i] = killshort(kill['killid'])
+
     elif name == "kill":
         curs = g.db.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         if value == 0:
@@ -192,7 +155,50 @@ def api(name=None, value=None, key=None):
 
     return jsonify(retVal)
 
-
+def killshort(killid):
+    curs = g.db.cursor(cursor_factory=psycopg2.extras.DictCursor)
+    curs.execute("""select * from killlist where killid = %s""", (killid,))
+    retVal = {}
+    for kill in curs:
+        system = systemInfo(kill['systemid'])
+        retVal = {
+            "loss": {},
+            "fb": {},
+            "killID": kill['killid'],
+            "system": system['name'],
+            "region": system['regionName'],
+            "secstatus": system['secStatus'],
+            "hours": kill['time'].strftime("%H:%M")
+        }
+        intcurs = g.db.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        intcurs.execute("""select * from killvictim where killid = %s""", (kill['killid'],))
+        victim = intcurs.fetchone()
+        victimShip = itemMarketInfo(victim['shiptypeid'])
+        retVal['loss'] = {
+            "corpID": victim['corporationid'],
+            "corpName": victim['corporationname'],
+            "itemName": victimShip['itemName'],
+            "groupID": victimShip['groupID'],
+            "groupName": victimShip['groupName'],
+            "charID": victim['characterid'],
+            "charName": victim['charactername'],
+            "itemID": victim['shiptypeid']
+        }
+        intcurs.execute("""select * from killattackers where killid = %s AND finalblow = %s""",
+            (kill['killid'], True))
+        attacker = intcurs.fetchone()
+        retVal['fb'] = {
+            "itemID": attacker['shiptypeid'],
+            "charID": attacker['characterid'],
+            "charName": attacker['charactername'],
+            "corpID": attacker['corporationid'],
+            "corpName": attacker['corporationname']
+        }
+        intcurs.execute("""select count(characterid) from killattackers where killid = %s""", 
+            (kill['killid'],))
+        killers = intcurs.fetchone()
+        retVal['numkillers'] = killers[0]
+    return retVal
 
 def systemInfo(sysID):
     """Takes a system's ID, and gets name, regionID, regionName, secStatus, caches it"""
