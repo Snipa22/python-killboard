@@ -1,0 +1,133 @@
+{% extends "layout.tmpl" %}
+{% block title %}{{content.title}}{% endblock %}
+{% block addlscript %}
+<script type=text/javascript>
+    $(document).ready(loadkill);
+    function loadkill(){
+        var request;
+        var killjson;
+        var str;
+        if (window.XMLHttpRequest)
+        {// code for IE7+, Firefox, Chrome, Opera, Safari
+            request=new XMLHttpRequest();
+        }
+        else
+        {// code for IE6, IE5
+            request=new ActiveXObject("Microsoft.XMLHTTP");
+        }
+        request.open("GET","{{ url_for('api') }}/kill/{{content.killid}}",false);
+        request.send();
+        obj = JSON.parse(request.responseText);
+        $("#victimimg").text("<img src='http://image.eveonline.com/Character/"+obj.victimcharID+"_64.png'></img>");
+        $("#victimname").text("<a href='{{ url_for('kill') }}/pilot/" + obj.victimcharID +"''>"+obj.victim.charactername+"</a>");
+        $("#victimcorp").text("<a href='{{ url_for('kill') }}/corp/" + obj.victim.corporationid +"''>"+obj.victim.corporationname+"</a>");
+        $("#victimnalliance").text("<a href='{{ url_for('kill') }}/alliance/" + obj.victim.allianceid +"''>"+obj.victim.alliancename+"</a>");
+        $("#victimshipimg").text("<img src='{{g.staticImages}}/Render/" + obj.victim.shiptypeid + "_64.png'></img>");
+        $("#victimshipname").text("<a href='{{ url_for('ship') }}/" + obj.victim.shiptypeid + "'>"+obj.victim.itemName+"</a> ("+obj.victim.groupName+")");
+        $("#killoc").text("<a href='{{ url_for('kill') }}/system/" + obj.systemid +"''>"+obj.victim.name+"</a> ("+obj.secStatus+")");
+        $("#killdate").text(kill.date);
+        $("#iskloss").text(kill.price);
+        $("#dmgdone").text(kill.victim.damagetaken);
+        for(attkid in obj.killers){
+            var kill = obj.killers[attkid];
+            str = "<tr>"
+            str += "<td rowspan="5"><img src='http://image.eveonline.com/Character/"+kill.characterid+"_64.png'></img></td>"
+            str += "<td rowspan="5"><img src='{{g.staticImages}}/Render/" + kill.shiptypeid + "_64.png'></img></td>"
+            str += "<td>"+kill.charactername+"</td>"
+            str += "</tr>"
+            str += "<tr><td><a href='{{ url_for('kill') }}/corp/" + kill.corporationid +"''>"+kill.corporationname+"</a></td></tr>"
+            str += "<tr><td><a href='{{ url_for('kill') }}/alliance/" + kill.allianceid +"''>"+kill.alliancename+"</a></td></tr>"
+            str += "<tr><td><a href='{{ url_for('ship') }}/" + kill.shiptypeid + "'>"+kill.itemName+"</a> ("+kill.groupName+")</td></tr>"
+            str += "<tr><td>"+kill.weap.itemName+"</td></tr>"
+            str += "<tr>"
+            str += "<td colspan="2">Damage Done:</td>"
+            str += "<td>"+kill.damagedone+"</td>"
+            str += "</tr>"
+            $('#attackers').find('tbody:last').append(str);
+        }
+        for(itemnum in obj.items){
+            var item = obj.items[itemnum];
+            if (item.destroyed != 0 and item.dropped != 0){
+                str = "<tr>"
+                str += "<td><img src='{{g.staticImages}}/Render/" + item.typeid + "_32.png'></img></td>"
+                str += "<td>" + itemName.typeid + "</td>"
+                str += "<td>" + itemName.destroyed + "</td>"
+                str += "<td>" + itemName.dropped + "</td>"
+                str += "<td>" + itemName.itemprice + "</td>"
+                str += "</tr>"
+            }
+            $('#itemdetail').find('tbody:last').append(str);
+        }
+    }
+    
+</script>
+{% endblock %}
+{% block content %}
+{% if content.ad %}
+{{ content.support }}
+{{ content.ad|safe }}
+{% endif %}
+<div class="span5">
+    <table id='victim'>
+        <tr>
+        <td rowspan="3" id="victimimg"></td>
+        <td>Victim:</td>
+        <td id="victimname"></td>
+        </tr>
+        <tr>
+        <td>Corp:</td>
+        <td id="victimcorp"></td>
+        </tr>
+        <tr>
+        <td>Alliance:</td>
+        <td id="victimalliance"></td>
+        </tr>
+    </table>
+    <div id='involved'>
+    </div>
+    <table id='attackers'>
+        <tbody>
+        </tbody>
+    </table>
+</div>
+<div class="span5">
+    <table id='lossdetail'>
+        <tr>
+        <td rowspan="3" id="victimshipimg"></td>
+        <td>Ship:</td>
+        <td id="victimshipname"></td>
+        </tr>
+        <tr>
+        <td>Location:</td>
+        <td id="killoc"></td>
+        </tr>
+        <tr>
+        <td>Date:</td>
+        <td id="killdate"></td>
+        </tr>
+        <tr>
+        <td colspan="2">ISK Loss at time of kill:</td>
+        <td id="iskloss"></td>
+        </tr>
+        <tr>
+        <td colspan="2">Total Damage Taken:</td>
+        <td id="dmgdone"></td>
+        </tr>
+    </table>
+    <div id='shipgfx'>
+    </div>
+    <table id='itemdetail'>
+        <thead>
+            <tr>
+                <td>img</td>
+                <td colspan>Fittingloc</td>
+                <td colspan>Dest</td>
+                <td colspan>Drop</td>
+                <td>Value</td>
+            </tr>
+        </thead>
+        <tbody>
+        </tbody>
+    </table>
+</div>
+{% endblock %}
