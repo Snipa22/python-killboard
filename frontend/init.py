@@ -201,23 +201,22 @@ def api(name=None, value=None, key=None):
     return jsonify(retVal)
 
 def top(name, limit=None, id=None):
+    curs = g.db.cursor(cursor_factory=psycopg2.extras.DictCursor)
     if name == "topkills":
         curs.execute("""select killvictim.*, killlist.price from killvictim, killlist where killvictim.killid = killlist.killid and killlist.time > now() - interval '7 days' order by killlist.price desc limit 5""")
     elif name == "toppods":
         curs.execute("""select killvictim.*, killlist.price from killvictim, killlist where killvictim.killid = killlist.killid and killlist.time > now() - interval '7 days' and killvictim.shiptypeid = 670 order by killlist.price desc limit 5""")
-    i = 0
-    retVal = {}
+    retVal = []
     for kill in curs:
-        data = itemMarketInfo(kill.shiptypeid)
-        retVal[i] = {
-        "killid" = kill['killid'],
-        "pilotname" = kill['charactername'],
-        "pilotid" = kill['characterid'],
-        "shipname" = data['itemName'],
-        "shipid" = kill['shiptypeid'],
-        "iskloss" = humanize.intword(int(kill.price))
-        }
-        i += 1
+        data = itemMarketInfo(kill['shiptypeid'])
+        retVal.append ({ 
+        "killid": kill['killid'],
+        "pilotname": kill['charactername'],
+        "pilotid": kill['characterid'],
+        "shipname": data['itemName'],
+        "shipid": kill['shiptypeid'],
+        "iskloss": humanize.intword(int(kill['price']))
+        })
     return retVal
 
 def getkill(value):
