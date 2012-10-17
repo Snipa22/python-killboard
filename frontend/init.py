@@ -7,6 +7,7 @@ import pylibmc
 import eveapi
 import re
 import locale
+import humanize
 locale.setlocale(locale.LC_ALL, 'en_US')
 
 config = ConfigParser.ConfigParser()
@@ -26,20 +27,8 @@ app.config.from_object(__name__)
 def home():
     content = {
         "title": "Killboard Home",
-        "topkills": {
-            "1": {
-                "pilotid": 1,
-                "pilotname": "data",
-                "shipid": 2,
-                "shipname": "capsule"
-            }
-        },
-        "topcapsules": {
-            "1": {
-                "pilotid": 1,
-                "pilotname": "data",
-            }
-        },
+        "topkills": top("topkills"),
+        "topcapsules": top("toppods"),
         "date": datetime.utcnow().strftime("%A, %d. %B %Y %I:%M%p")
     }
     return render_template('index.tmpl', content=content)
@@ -204,11 +193,32 @@ def api(name=None, value=None, key=None):
         for kill in curs:
             i += 1
             retVal['kills'][i] = killshort(kill['killid'])
+    elif name == "topkills" or name =="toppods":
+        retVal = top(name)
     else:
         return render_template('apiusage.html')
 
-
     return jsonify(retVal)
+
+def top(name, limit=None, id=None):
+    if name == "topkills":
+        curs.execute("""select killvictim.*, killlist.price from killvictim, killlist where killvictim.killid = killlist.killid and killlist.time > now() - interval '7 days' order by killlist.price desc limit 5""")
+    elif name == "toppods":
+        curs.execute("""select killvictim.*, killlist.price from killvictim, killlist where killvictim.killid = killlist.killid and killlist.time > now() - interval '7 days' and killvictim.shiptypeid = 670 order by killlist.price desc limit 5""")
+    i = 0
+    retVal = {}
+    for kill in curs:
+        data = itemMarketInfo(kill.shiptypeid)
+        retVal[i] = {
+        "killid" = kill['killid'],
+        "pilotname" = kill['charactername'],
+        "pilotid" = kill['characterid'],
+        "shipname" = data['itemName'],
+        "shipid" = kill['shiptypeid'],
+        "iskloss" = humanize.intword(int(kill.price))
+        }
+        i += 1
+    return retVal
 
 def getkill(value):
     curs = g.db.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
