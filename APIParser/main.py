@@ -61,8 +61,8 @@ def priceCheck(typeID):
     try:
         curs.execute("""select manual, override, api from killprices where typeid = %s""", (typeID,))
         data = curs.fetchone()
-        if data[0]:
-            return data[1]
+        if data[1]:
+            return data[0]
     except:
         pass
     if psource == "psql":
@@ -83,6 +83,7 @@ def priceCheck(typeID):
         except:
             curs.execute("""insert into killprices (typeid, api) values (%s, %s)""", (typeID, retVal))
         pricedbcon.commit()
+    logging.debug("Item: %i Value: %f" % (typeID, retVal))
     return retVal
 
 def ecpricing(typeID):
@@ -143,12 +144,13 @@ def psqlpricing(typeID):
         dbcon = psycopg2.connect("host="+psqlhost+" user="+psqluser+" password="+psqlpass+" dbname="+psqlname+" port="+psqlport)
     curs = dbcon.cursor(cursor_factory=psycopg2.extras.DictCursor)
     curs.execute("""select * from market_data_itemregionstat where mapregion_id = 10000002 and invtype_id = %s """, (typeID,))
-    data = curs.fetchone()
-    if data['sell_95_percentile'] != 0:
-        return data['sell_95_percentile']
-    elif data['sellmedian'] != 0:
-        return data['sellmedian']
-    else:
+    try:
+        data = curs.fetchone()
+        if data['sell_95_percentile'] != 0:
+            return data['sell_95_percentile']
+        elif data['sellmedian'] != 0:
+            return data['sellmedian']
+    except:
         curs.execute("""select * from market_data_itemregionstathistory where mapregion_id = 10000002 and invtype_id = %s and (sellmedian != 0 or sell_95_percentile != 0) order by date desc limit 1""", (typeID,))
         try:
             data = curs.fetchone()
@@ -213,30 +215,36 @@ def worker(message):
                         continue
                 except ProgrammingError:
                     pass
-
-                for items in kill.items:
-                    price = priceCheck(items.typeID)
-                    pricesum += (price * items.qtyDropped * items.qtyDestroyed)
-                    curs.execute("""insert into killitems values(%s, %s, %s, %s, %s, %s, %s)""", (killid, items.typeID,
-                        items.flag, items.qtyDropped, items.qtyDestroyed, items.singleton, price))
-
+   
                 curs.execute("""insert into killlist values (%s, %s, TIMESTAMPTZ 'epoch' + %s * '1 second'::interval, %s
                     )""", (killid, kill.solarSystemID, kill.killTime, kill.victim.characterID))
 
+                logging.debug("Adding lost items...  KeyID: %s  charID: %s Corp: %s" % (key, charid, corp))
+
+                for items in kill.items:
+                    logging.debug("Item lost %s" % (items.typeID))
+                    price = priceCheck(items.typeID)
+                    pricesum += (price * items.qtyDropped) + (price * items.qtyDestroyed)
+                    curs.execute("""insert into killitems values(%s, %s, %s, %s, %s, %s, %s)""", (killid, items.typeID,
+                        items.flag, items.qtyDropped, items.qtyDestroyed, items.singleton, price))
+
                 price = priceCheck(kill.victim.shipTypeID)
                 pricesum += price
-                curs.execute("""insert into killvictim values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, )""", (killid,
+                logging.debug("Player Killed %s" % (kill.victim.characterName))
+                curs.execute("""insert into killvictim values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""", (killid,
                     kill.victim.allianceID, kill.victim.allianceName, kill.victim.characterID, kill.victim.characterName,
                     kill.victim.corporationID, kill.victim.corporationName, kill.victim.damageTaken, kill.victim.factionID,
                     kill.victim.factionName, kill.victim.shipTypeID, price))
 
                 for attackers in kill.attackers:
+                    logging.debug("Attacker: %s" % (attackers.characterName))
                     curs.execute("""insert into killattackers values(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s::boolean, %s, %s)
                         """, (killid, attackers.characterID, attackers.characterName, attackers.corporationID,
                         attackers.corporationName, attackers.allianceID, attackers.allianceName,
                         attackers.factionID, attackers.factionName, attackers.securityStatus, attackers.damageDone,
                         attackers.finalBlow, attackers.weaponTypeID, attackers.shipTypeID))
 
+                logging.debug("Final Price: %s KillID: %s" % (pricesum, killid))
                 curs.execute("""update killlist set price = %s where killid = %s""", (pricesum, killid))
 
                 dbcon.commit()
