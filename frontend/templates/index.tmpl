@@ -50,13 +50,13 @@
 {% endif %}
 <i class="icon-eye-open"></i>Most expensive kills - Last 7 days
 <hr>
-<table>
+<table class="table table-striped">
     <tr>
         {% for kill in content.topkills %}
-        <td align=center onclick="window.location.href='{{ url_for('kill') }}/{{kill.killid}}">
-            <a href="{{ url_for('pilot') }}/{{kill.pilotid}}">{{kill.pilotname}}</a>
-            <img src="{{g.staticImages}}/Render/{{kill.shipid}}_64.png" alt="{{kill.shipname}}"></img>
-            <a href="{{ url_for('ship') }}/{{kill.shipid}}">{{kill.shipname}}</a>
+        <td align=center onclick="window.location.href='{{ url_for('kill') }}/{{kill.killid}}'">
+            <a href="{{ url_for('pilot') }}/{{kill.pilotid}}">{{kill.pilotname}}</a><br>
+            <a href='{{ url_for('kill') }}/{{kill.killid}}'><img src="{{g.staticImages}}/Render/{{kill.shipid}}_128.png" alt="{{kill.shipname}}"></img></a><br>
+            <a href="{{ url_for('ship') }}/{{kill.shipid}}">{{kill.shipname}}</a><br>
             {{kill.iskloss}}
         </td>
         {% endfor %}
@@ -64,13 +64,13 @@
 </table>
 <i class="icon-eye-open"></i>Most capsule kills - Last 7 days
 <hr>
-<table>
+<table class="table table-striped">
     <tr>
         {% for kill in content.topcapsules %}
-        <td align=center onclick="window.location.href='{{ url_for('kill') }}/{{kill.killid}}">
-            <a href="{{ url_for('pilot') }}/{{kill.pilotid}}">{{kill.pilotname}}</a>
-            <img src="{{g.staticImages}}/Render/{{kill.shipid}}_64.png" alt="{{kill.shipname}}"></img>
-            <a href="{{ url_for('ship') }}/{{kill.shipid}}">{{kill.shipname}}</a>
+        <td align=center onclick="window.location.href='{{ url_for('kill') }}/{{kill.killid}}'">
+            <a href="{{ url_for('pilot') }}/{{kill.pilotid}}">{{kill.pilotname}}</a><br>
+            <a href='{{ url_for('kill') }}/{{kill.killid}}'><img src="{{g.staticImages}}/Render/{{kill.shipid}}_128.png" alt="{{kill.shipname}}"></img></a><br>
+            <a href="{{ url_for('ship') }}/{{kill.shipid}}">{{kill.shipname}}</a><br>
             {{kill.iskloss}}
         </td>
         {% endfor %}
