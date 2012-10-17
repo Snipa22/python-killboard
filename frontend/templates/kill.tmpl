@@ -18,44 +18,54 @@
         request.open("GET","{{ url_for('api') }}/kill/{{content.killid}}",false);
         request.send();
         obj = JSON.parse(request.responseText);
-        $("#victimimg").text("<img src='http://image.eveonline.com/Character/"+obj.victimcharID+"_64.png'></img>");
-        $("#victimname").text("<a href='{{ url_for('kill') }}/pilot/" + obj.victimcharID +"''>"+obj.victim.charactername+"</a>");
-        $("#victimcorp").text("<a href='{{ url_for('kill') }}/corp/" + obj.victim.corporationid +"''>"+obj.victim.corporationname+"</a>");
-        $("#victimnalliance").text("<a href='{{ url_for('kill') }}/alliance/" + obj.victim.allianceid +"''>"+obj.victim.alliancename+"</a>");
-        $("#victimshipimg").text("<img src='{{g.staticImages}}/Render/" + obj.victim.shiptypeid + "_64.png'></img>");
-        $("#victimshipname").text("<a href='{{ url_for('ship') }}/" + obj.victim.shiptypeid + "'>"+obj.victim.itemName+"</a> ("+obj.victim.groupName+")");
-        $("#killoc").text("<a href='{{ url_for('kill') }}/system/" + obj.systemid +"''>"+obj.victim.name+"</a> ("+obj.secStatus+")");
-        $("#killdate").text(kill.date);
-        $("#iskloss").text(kill.price);
-        $("#dmgdone").text(kill.victim.damagetaken);
+        $("#victimimg").html("<img src='http://image.eveonline.com/Character/"+obj.victimcharID+"_64.jpg'></img>");
+        $("#victimname").html("<a href='{{ url_for('kill') }}/pilot/" + obj.victimcharID +"'>"+obj.victim.charactername+"</a>");
+        $("#victimcorp").html("<a href='{{ url_for('kill') }}/corp/" + obj.victim.corporationid +"'>"+obj.victim.corporationname+"</a>");
+        $("#victimalliance").html("<a href='{{ url_for('kill') }}/alliance/" + obj.victim.allianceid +"'>"+obj.victim.alliancename+"</a>");
+        $("#victimshipimg").html("<img src='{{g.staticImages}}/Render/" + obj.victim.shiptypeid + "_64.png'></img>");
+        $("#victimshipname").html("<a href='{{ url_for('ship') }}/" + obj.victim.shiptypeid + "'>"+obj.victim.itemName+"</a> ("+obj.victim.groupName+")");
+        $("#killoc").html("<a href='{{ url_for('kill') }}/system/" + obj.systemid +"''>"+obj.name+"</a> ("+obj.secStatus+")");
+        $("#killdate").html(obj.time);
+        $("#iskloss").html(obj.price);
+        $("#dmgdone").html(obj.victim.damagetaken);
         for(attkid in obj.killers){
             var kill = obj.killers[attkid];
             str = "<tr>"
-            str += "<td rowspan="5"><img src='http://image.eveonline.com/Character/"+kill.characterid+"_64.png'></img></td>"
-            str += "<td rowspan="5"><img src='{{g.staticImages}}/Render/" + kill.shiptypeid + "_64.png'></img></td>"
+            str += "<td rowspan='5'><img src='http://image.eveonline.com/Character/"+kill.characterid+"_64.jpg'></img></td>"
+            if (kill.shiptypeid != 0){
+                str += "<td rowspan='5'><img src='{{g.staticImages}}/Render/" + kill.shiptypeid + "_64.png'></img></td>"
+            } else {
+                str += "<td rowspan='5'><img src='http://image.eveonline.com/Render/1_64.png'></img></td>"
+            }
             str += "<td>"+kill.charactername+"</td>"
             str += "</tr>"
             str += "<tr><td><a href='{{ url_for('kill') }}/corp/" + kill.corporationid +"''>"+kill.corporationname+"</a></td></tr>"
             str += "<tr><td><a href='{{ url_for('kill') }}/alliance/" + kill.allianceid +"''>"+kill.alliancename+"</a></td></tr>"
-            str += "<tr><td><a href='{{ url_for('ship') }}/" + kill.shiptypeid + "'>"+kill.itemName+"</a> ("+kill.groupName+")</td></tr>"
-            str += "<tr><td>"+kill.weap.itemName+"</td></tr>"
+            if (kill.shiptypeid != 0){
+                str += "<tr><td><a href='{{ url_for('ship') }}/" + kill.shiptypeid + "'>"+kill.itemName+"</a> ("+kill.groupName+")</td></tr>"
+            } else {
+                str += "<tr><td>None</td></tr>"
+            }
+            if (kill.weap.groupName != "#System"){
+                str += "<tr><td>"+kill.weap.itemName+"</td></tr>"
+            } else {
+               str += "<tr><td>Unknown</td></tr>"
+            }
             str += "<tr>"
-            str += "<td colspan="2">Damage Done:</td>"
+            str += "<td colspan='2'>Damage Done:</td>"
             str += "<td>"+kill.damagedone+"</td>"
             str += "</tr>"
             $('#attackers').find('tbody:last').append(str);
         }
         for(itemnum in obj.items){
             var item = obj.items[itemnum];
-            if (item.destroyed != 0 and item.dropped != 0){
-                str = "<tr>"
-                str += "<td><img src='{{g.staticImages}}/Render/" + item.typeid + "_32.png'></img></td>"
-                str += "<td>" + itemName.typeid + "</td>"
-                str += "<td>" + itemName.destroyed + "</td>"
-                str += "<td>" + itemName.dropped + "</td>"
-                str += "<td>" + itemName.itemprice + "</td>"
-                str += "</tr>"
-            }
+            str = "<tr>"
+            str += "<td><img src='{{g.staticImages}}/Type/" + item.typeid + "_32.png'></img></td>"
+            str += "<td>" + item.itemName + "</td>"
+            str += "<td>" + item.destroyed + "</td>"
+            str += "<td>" + item.dropped + "</td>"
+            str += "<td>" + item.itemprice + "</td>"
+            str += "</tr>"
             $('#itemdetail').find('tbody:last').append(str);
         }
     }
@@ -67,6 +77,7 @@
 {{ content.support }}
 {{ content.ad|safe }}
 {% endif %}
+<div class="row">
 <div class="span5">
     <table id='victim'>
         <tr>
@@ -85,7 +96,7 @@
     </table>
     <div id='involved'>
     </div>
-    <table id='attackers'>
+    <table id='attackers' class="table table-striped">
         <tbody>
         </tbody>
     </table>
@@ -116,7 +127,7 @@
     </table>
     <div id='shipgfx'>
     </div>
-    <table id='itemdetail'>
+    <table id='itemdetail' class="table table-striped">
         <thead>
             <tr>
                 <td>img</td>
@@ -129,5 +140,6 @@
         <tbody>
         </tbody>
     </table>
+</div>
 </div>
 {% endblock %}

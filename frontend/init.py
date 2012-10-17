@@ -57,7 +57,12 @@ def ship(name=None):
 @app.route('/kill')
 @app.route('/kill/<id>')
 def kill(id=None):
-    return
+    killid = int(id)
+    content = {
+        "title": "Kill ID: %d" % killid,
+        "killid": killid
+    }
+    return render_template('kill.tmpl', content=content)
 
 @app.route('/api')
 @app.route('/api/<name>')
@@ -110,12 +115,16 @@ def api(name=None, value=None, key=None):
         i = 0
         for data in curs:
             retVal['killers'][i] = {}
+            retVal['killers'][i]['weap'] = {}
             for key, value in data.iteritems():
                 if key == "shiptypeid":
                     for syskey, sysvalue in itemMarketInfo(value).iteritems():
                         retVal['killers'][i][syskey] = sysvalue
                 elif key == "damagedone":
                     value = locale.format("%d", value, grouping=True)
+                elif key == "weapontypeid":
+                    for syskey, sysvalue in itemMarketInfo(value).iteritems():
+                        retVal['killers'][i]['weap'][syskey] = sysvalue
                 retVal['killers'][i][key] = value
             i += 1
         curs.execute("""select * from killitems where killid = %s""", (killid,))
