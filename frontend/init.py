@@ -94,7 +94,7 @@ def api(name=None, value=None, key=None):
         curs.execute("""select * from killlist where killid = %s""", (killid,))
         for key, value in curs.fetchall()[0].iteritems():
             if key == "time":
-                retVal[key] = value.strftime("%H:%M")
+                retVal[key] = value.strftime("%Y-%m-%d %H:%M")
             elif key == "systemid":
                 for syskey, sysvalue in systemInfo(value).iteritems():
                     retVal[syskey] = sysvalue
